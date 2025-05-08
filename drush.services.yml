@@ -1,0 +1,16 @@
+services:
+  ai_log_analysis.log_analyzer:
+    class: Drupal\ai_log_analysis\Service\LogAnalyzer
+    arguments: ['@database', '@http_client', '@config.factory']
+
+  ai_log_analysis.commands:
+    class: Drupal\ai_log_analysis\Command\ErrorLogAnalyzerCommand
+    arguments: ['@ai_log_analysis.log_analyzer']
+    tags:
+      - { name: drush.command }
+
+  ai_log_analysis.logger:
+    class:  Drupal\ai_log_analysis\Logger\CustomLogger
+    arguments: ['@database', '@logger.log_message_parser']
+    tags:
+      - { name: logger }
