@@ -44,11 +44,15 @@ class LogAnalysisController extends ControllerBase {
    *   A render array containing the logs and AI analysis.
    */
   public function analyze() {
+    // Get configured log limit.
+    $config = $this->config('ai_log_analysis.settings');
+    $log_limit = (int) $config->get('log_limit') ?? 5;
+
     // Clear any previous logs stored in temporary state.
     \Drupal::service('tempstore.private')->get('ai_crash_analysis')->delete('logs');
 
-    // Fetch the latest logs.
-    $logs = $this->analyzer->getRecentDblogs(10);
+    // Fetch recent logs.
+    $logs = $this->analyzer->getRecentDblogs($log_limit);
 
     // Check if logs are available.
     if (empty($logs)) {

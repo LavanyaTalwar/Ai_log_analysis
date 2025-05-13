@@ -14,14 +14,6 @@ grok_settings_form:
   requirements:
     _permission: 'administer site configuration'
     
-ai_log_analysis.fix_single:
-  path: '/admin/reports/ai-log-fix'
-  defaults:
-    _form: '\Drupal\ai_log_analysis\Form\ErrorFixForm'
-    _title: 'Fix Single Log Error'
-  requirements:
-    _permission: 'administer site configuration'
-
 ai_log_analysis.logs:
   path: '/ai-log-analysis/logs'
   defaults:

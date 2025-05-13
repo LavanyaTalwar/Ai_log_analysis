@@ -1,4 +1,5 @@
-<?php 
+<?php
+
 namespace Drupal\ai_log_analysis\Controller;
 
 use Drupal\Core\Controller\ControllerBase;
@@ -12,12 +13,23 @@ use Drupal\Core\Url;
  */
 class LogController extends ControllerBase {
 
+  /**
+   * Log analyzer service.
+   *
+   * @var \Drupal\ai_log_analysis\Service\LogAnalyzer
+   */
   protected $analyzer;
 
+  /**
+   * Constructs the controller.
+   */
   public function __construct(LogAnalyzer $analyzer) {
     $this->analyzer = $analyzer;
   }
 
+  /**
+   * {@inheritdoc}
+   */
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('ai_log_analysis.log_analyzer')
@@ -28,7 +40,10 @@ class LogController extends ControllerBase {
    * Page showing recent logs with Analyze buttons.
    */
   public function logsPage() {
-    $logs = $this->analyzer->getRecentDblogs(10);
+    // Get log limit from configuration.
+    $log_limit = (int) $this->config('ai_log_analysis.settings')->get('log_limit') ?? 5;
+    $logs = $this->analyzer->getRecentDblogs($log_limit);
+
     $headers = ['Timestamp', 'Type', 'Severity', 'Message', 'Operations'];
     $rows = [];
 
@@ -67,7 +82,11 @@ class LogController extends ControllerBase {
    * Handle analysis of a specific log entry.
    */
   public function analyze($key) {
-    $logs = $this->analyzer->getRecentDblogs(10);
+    // Get log limit from config.
+    $log_limit = (int) $this->config('ai_log_analysis.settings')->get('log_limit') ?? 5;
+    $logs = $this->analyzer->getRecentDblogs($log_limit);
+
+    // Validate the requested log index.
     if (!isset($logs[$key])) {
       $this->messenger()->addError($this->t('Invalid log entry.'));
       return new RedirectResponse(Url::fromRoute('ai_log_analysis.logs')->toString());
@@ -80,7 +99,7 @@ class LogController extends ControllerBase {
       '#attributes' => ['class' => ['ai-analysis']],
       'analysis' => [
         '#type' => 'markup',
-        '#markup' => '<pre>' . htmlspecialchars($result['analysis']) . '</pre>',
+        '#markup' => '<pre>' . htmlspecialchars($result['analysis'] ?? 'No analysis available.') . '</pre>',
       ],
     ];
 
