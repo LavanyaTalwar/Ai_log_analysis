@@ -14,7 +14,7 @@ use Drupal\Core\Url;
 class LogController extends ControllerBase {
 
   /**
-   * Log analyzer service.
+   * The log analyzer service.
    *
    * @var \Drupal\ai_log_analysis\Service\LogAnalyzer
    */
@@ -40,8 +40,9 @@ class LogController extends ControllerBase {
    * Page showing recent logs with Analyze buttons.
    */
   public function logsPage() {
-    // Get log limit from configuration.
-    $log_limit = (int) $this->config('ai_log_analysis.settings')->get('log_limit') ?? 5;
+    $config = $this->config('ai_log_analysis.settings');
+    $log_limit = (int) $config->get('log_limit') ?: 5;
+
     $logs = $this->analyzer->getRecentDblogs($log_limit);
 
     $headers = ['Timestamp', 'Type', 'Severity', 'Message', 'Operations'];
@@ -50,7 +51,7 @@ class LogController extends ControllerBase {
     foreach ($logs as $key => $log) {
       $url = Url::fromRoute('ai_log_analysis.analyze', ['key' => $key]);
       $rows[] = [
-        date('Y-m-d H:i:s', (int) $log['timestamp']),
+        $log['timestamp'],
         $log['type'],
         $log['severity'],
         substr($log['message'], 0, 100) . '...',
@@ -70,25 +71,20 @@ class LogController extends ControllerBase {
       '#header' => $headers,
       '#rows' => $rows,
       '#empty' => $this->t('No logs found.'),
-      '#attached' => [
-        'library' => [
-          'core/drupal.dialog.ajax',
-        ],
-      ],
     ];
   }
 
   /**
-   * Handle analysis of a specific log entry.
+   * Handles analysis of a specific log entry.
    */
   public function analyze($key) {
-    // Get log limit from config.
-    $log_limit = (int) $this->config('ai_log_analysis.settings')->get('log_limit') ?? 5;
+    $config = $this->config('ai_log_analysis.settings');
+    $log_limit = (int) $config->get('log_limit') ?: 5;
+
     $logs = $this->analyzer->getRecentDblogs($log_limit);
 
-    // Validate the requested log index.
     if (!isset($logs[$key])) {
-      $this->messenger()->addError($this->t('Invalid log entry.'));
+      $this->messenger()->addError($this->t('Invalid log entry selected.'));
       return new RedirectResponse(Url::fromRoute('ai_log_analysis.logs')->toString());
     }
 
@@ -107,7 +103,7 @@ class LogController extends ControllerBase {
       $snippets_markup = '';
       foreach ($result['snippets'] as $entry) {
         $snippets_markup .= "<div><p><strong>Message:</strong> {$entry['message']}</p>";
-        $snippets_markup .= '<pre>' . htmlspecialchars($entry['snippet'] ?? 'No snippet available') . '</pre></div>';
+        $snippets_markup .= '<pre>' . htmlspecialchars($entry['snippet'] ?? 'No snippet available.') . '</pre></div>';
       }
 
       $build['snippets'] = [
