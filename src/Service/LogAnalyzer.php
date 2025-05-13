@@ -68,7 +68,7 @@ class LogAnalyzer {
    * @return array
    *   An array of log entries.
    */
-  public function getRecentDblogs($limit = 10): array {
+  public function getRecentDblogs($limit = 10){
     $query = $this->database->select('custom_log', 'w')
       ->fields('w', ['id', 'type', 'message', 'severity', 'timestamp'])
       ->orderBy('timestamp', 'DESC')
