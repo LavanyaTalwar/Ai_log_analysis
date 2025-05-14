@@ -43,7 +43,7 @@ class GrokSettingsForm extends ConfigFormBase {
       '#title' => $this->t('Number of Logs to Analyze'),
       '#default_value' => $config->get('log_limit') ?? 5,
       '#min' => 1,
-      '#max' => 50,
+      '#max' => 1000,
       '#description' => $this->t('Select how many recent logs should be sent to Grok AI for analysis.'),
       '#required' => TRUE,
     ];

@@ -1,0 +1,13 @@
+<?php
+
+/**
+ * Implements hook_cron().
+ */
+function ai_log_analysis_cron() {
+  $max_age = \Drupal::config('ai_log_analysis.settings')->get('log_retention_days') ?? 30;
+  $cutoff = \Drupal::time()->getCurrentTime() - ($max_age * 86400);
+
+  \Drupal::database()->delete('custom_log')
+    ->condition('timestamp', $cutoff, '<')
+    ->execute();
+}
