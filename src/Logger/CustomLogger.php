@@ -61,6 +61,7 @@ class CustomLogger implements LoggerInterface {
     // Interpolate message placeholders with values.
     $interpolated_message = strtr($message, $placeholders);
 
+    // Insert new log entry.
     $this->database->insert('custom_log')
       ->fields([
         'type' => $context['channel'] ?? 'custom_logger',
@@ -74,6 +75,24 @@ class CustomLogger implements LoggerInterface {
       ])
       ->execute();
 
+    // Check total log count.
+    $count = $this->database->select('custom_log', 'cl')
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+
+    if ($count > 1000) {
+      $limit = 1000;
+
+      $subquery = $this->database->select('custom_log', 'cl2')
+        ->fields('cl2', ['id'])
+        ->orderBy('timestamp', 'DESC')
+        ->range(0, $limit);
+
+      $this->database->delete('custom_log')
+        ->condition('id', $subquery, 'NOT IN')
+        ->execute();
+    }
   }
 
 }

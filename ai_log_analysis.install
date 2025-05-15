@@ -66,9 +66,7 @@ function ai_log_analysis_schema() {
  * Implements hook_uninstall().
  */
 function ai_log_analysis_uninstall() {
-  // Remove the custom_log table.
   \Drupal::database()->schema()->dropTable('custom_log');
 
-  // Delete configuration settings.
   \Drupal::configFactory()->getEditable('ai_log_analysis.settings')->delete();
 }

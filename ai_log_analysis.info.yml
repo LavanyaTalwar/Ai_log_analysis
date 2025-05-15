@@ -1,6 +1,6 @@
 name: 'AI Log Analysis'
 type: module
-description: 'Analyzes dblogs during a crash and uses Grok AI to provide insights and fixes.'
+description: 'Analyzes logs during a crash and uses AI to provide insights and fixes.'
 core_version_requirement: ^10
 package: Custom
 dependencies:

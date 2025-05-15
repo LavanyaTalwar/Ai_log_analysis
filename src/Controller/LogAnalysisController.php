@@ -46,10 +46,10 @@ class LogAnalysisController extends ControllerBase {
   public function analyze() {
     // Get configured log limit.
     $config = $this->config('ai_log_analysis.settings');
-    $log_limit = (int) $config->get('log_limit') ?? 5;
+    $log_limit = (int) $config->get('log_limit') ?: 5;
 
     // Clear any previous logs stored in temporary state.
-    \Drupal::service('tempstore.private')->get('ai_crash_analysis')->delete('logs');
+    \Drupal::service('tempstore.private')->get('ai_log_analysis')->delete('logs');
 
     // Fetch recent logs.
     $logs = $this->analyzer->getRecentDblogs($log_limit);
@@ -62,8 +62,8 @@ class LogAnalysisController extends ControllerBase {
       ];
     }
 
-    // Analyze logs with Grok AI.
-    $ai_response = $this->analyzer->analyzeWithGrok($logs);
+    // Analyze logs with the new AI method.
+    $ai_response = $this->analyzer->analyzeWithAi($logs);
 
     // Prepare the render array.
     $build = [
@@ -72,7 +72,7 @@ class LogAnalysisController extends ControllerBase {
     ];
 
     $build['logs_title'] = [
-      '#markup' => '<h2>Recent Dblog Entries</h2>',
+      '#markup' => '<h2>' . $this->t('Recent Dblog Entries') . '</h2>',
     ];
 
     foreach ($logs as $log) {
@@ -81,11 +81,9 @@ class LogAnalysisController extends ControllerBase {
       // Try to get a code snippet for this log.
       $snippet = $this->analyzer->getCodeSnippetFromLog($log['message']);
 
-      $snippet_string = '';
       if (!empty($snippet)) {
         $snippet_string = is_string($snippet) ? $snippet : print_r($snippet, TRUE);
-
-        $log_markup .= '<details style="margin-bottom:1em;"><summary><strong>View Code Snippet</strong></summary><pre>' .
+        $log_markup .= '<details style="margin-bottom:1em;"><summary><strong>' . $this->t('View Code Snippet') . '</strong></summary><pre>' .
           htmlspecialchars($snippet_string) .
           '</pre></details>';
       }
@@ -96,14 +94,14 @@ class LogAnalysisController extends ControllerBase {
     }
 
     $build['analysis_title'] = [
-      '#markup' => '<h2>Grok AI Analysis</h2>',
+      '#markup' => '<h2>' . $this->t('AI Analysis') . '</h2>',
     ];
 
     $ai_text = is_string($ai_response) ? $ai_response : print_r($ai_response, TRUE);
     $build['ai_output'] = [
       '#markup' => '<div style="background: #f8f9fa; border: 1px solid #ccc; padding: 1em; border-radius: 6px;"><pre>' .
-      (!empty($ai_text) ? htmlspecialchars($ai_text) : 'No analysis available.') .
-      '</pre></div>',
+        (!empty($ai_text) ? htmlspecialchars($ai_text) : $this->t('No analysis available.')) .
+        '</pre></div>',
     ];
 
     return $build;
