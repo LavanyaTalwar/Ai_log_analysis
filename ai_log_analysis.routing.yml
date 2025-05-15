@@ -1,19 +1,11 @@
-ai_log_analysis.analysis:
-  path: '/admin/reports/ai-log-analysis'
+ai_log_analysis.settings:
+  path: '/admin/config/system/ai-log-analysis'
   defaults:
-    _controller: '\Drupal\ai_log_analysis\Controller\LogAnalysisController::analyze'
-    _title: 'AI Log Analysis'
+    _form: '\Drupal\ai_log_analysis\Form\LogAnalysisSettingsForm'
+    _title: 'AI Log Analysis Settings'
   requirements:
     _permission: 'administer site configuration'
 
-grok_settings_form:
-  path: '/admin/config/development/grok-ai'
-  defaults:
-    _form: '\Drupal\ai_log_analysis\Form\GrokSettingsForm'
-    _title: 'Grok AI Settings'
-  requirements:
-    _permission: 'administer site configuration'
-    
 ai_log_analysis.logs:
   path: '/ai-log-analysis/logs'
   defaults:

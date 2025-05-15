@@ -2,9 +2,6 @@ ai_log_analysis.settings:
   type: config_object
   label: 'AI Log Analysis Settings'
   mapping:
-    grok_api_key:
-      type: string
-      label: 'Grok API Key'
     log_limit:
       type: integer
       label: 'Number of Logs to Analyze'

@@ -1,0 +1,10 @@
+{
+  "name": "custom/ai_log_analysis",
+  "description": "Analyzes Drupal logs using the AI module and selected provider.",
+  "type": "drupal-module",
+  "require": {
+    "drupal/ai": "^1.0"
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true
+}

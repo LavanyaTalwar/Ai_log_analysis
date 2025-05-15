@@ -6,7 +6,7 @@ use Drupal\ai_log_analysis\Service\LogAnalyzer;
 use Drush\Commands\DrushCommands;
 
 /**
- * Provides a Drush command to analyze recent error logs.
+ * Provides a Drush command to analyze recent error logs using AI module.
  */
 class ErrorLogAnalyzerCommand extends DrushCommands {
 
@@ -28,70 +28,67 @@ class ErrorLogAnalyzerCommand extends DrushCommands {
   }
 
   /**
-   * Analyze recent error logs.
+   * Analyze recent error logs using AI module.
    *
    * @command ai_log_analysis:analyze
    * @aliases ala-analyze
    */
   public function analyzeLogs() {
+    // Fetch recent logs (limit configurable in LogAnalyzer or default).
     $logs = $this->logAnalyzer->getRecentDblogs();
-  
+
     if (empty($logs)) {
       $this->output()->writeln("No recent logs found.");
       return;
     }
-  
-    // Display logs for selection.
+
     $this->output()->writeln("\n====== 📝 Select a log to analyze ======\n");
-  
+
     foreach ($logs as $index => $log) {
       $summary = substr(strip_tags($log['message']), 0, 80);
       $this->output()->writeln("[$index] {$log['timestamp']} - {$summary}");
     }
-  
-    // Prompt user to select a log.
+
     $selected = $this->io()->ask('Enter the number of the log you want to analyze');
-  
+
     if (!is_numeric($selected) || !isset($logs[$selected])) {
       $this->output()->writeln("<error>Invalid selection. Exiting.</error>");
       return;
     }
-  
+
     $selectedLog = [$logs[$selected]];
-  
-    $result = $this->logAnalyzer->analyzeWithGrok($selectedLog);
-  
-    // Output AI analysis.
+
+    // Use the new AI-based analysis method from LogAnalyzer service.
+    $result = $this->logAnalyzer->analyzeWithAi($selectedLog);
+
     $this->output()->writeln("\n====== 🧠 AI Analysis ======\n");
-  
-    // Convert *text* to bold using ANSI escape codes.
+
+    // Make *text* bold in output.
     $analysis = preg_replace_callback('/\*(.*?)\*/', function ($matches) {
       return "\033[1m" . $matches[1] . "\033[0m";
     }, $result['analysis']);
-  
+
     $this->output()->writeln($analysis);
-  
-    // Output code snippets if available.
+
     if (!empty($result['snippets'])) {
       $this->output()->writeln("\n====== 💻 Code Snippets ======\n");
-  
+
       foreach ($result['snippets'] as $entry) {
         $this->output()->writeln("🕒 Timestamp: {$entry['timestamp']}");
         $this->output()->writeln("📘 Type: {$entry['type']}");
         $this->output()->writeln("⚠️ Severity: {$entry['severity']}");
         $this->output()->writeln("📝 Message: {$entry['message']}");
-  
+
         if (!empty($entry['snippet'])) {
           $this->output()->writeln("📄 Snippet:\n" . $entry['snippet']);
         }
         else {
           $this->output()->writeln("📄 Snippet: Not available.");
         }
-  
+
         $this->output()->writeln(str_repeat('-', 60));
       }
     }
   }
-  
 
 }

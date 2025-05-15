@@ -58,7 +58,7 @@ class LogController extends ControllerBase {
         [
           'data' => [
             '#type' => 'link',
-            '#title' => $this->t('Analyze with Grok'),
+            '#title' => $this->t('Analyze with AI'),
             '#url' => $url,
             '#attributes' => ['class' => ['button', 'button--primary']],
           ],
