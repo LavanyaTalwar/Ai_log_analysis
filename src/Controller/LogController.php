@@ -88,7 +88,7 @@ class LogController extends ControllerBase {
       return new RedirectResponse(Url::fromRoute('ai_log_analysis.logs')->toString());
     }
 
-    $result = $this->analyzer->analyzeWithGrok([$logs[$key]]);
+    $result = $this->analyzer->analyzeWithAi([$logs[$key]]);
 
     $build = [
       '#type' => 'container',

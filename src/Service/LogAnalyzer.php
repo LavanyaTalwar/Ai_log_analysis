@@ -3,20 +3,22 @@ namespace Drupal\ai_log_analysis\Service;
 
 use Drupal\Core\Database\Connection;
 use Drupal\Core\Config\ConfigFactoryInterface;
-use GuzzleHttp\Client;
+use Drupal\ai\AiProviderPluginManager;
+use Drupal\ai\OperationType\Chat\ChatInput;
+use Drupal\ai\OperationType\Chat\ChatMessage;
 
 /**
- * Service to analyze logs using Grok AI.
+ * Service to analyze logs using the contrib ai module (via ai.provider).
  */
 class LogAnalyzer {
 
   protected $database;
-  protected $httpClient;
+  protected $aiProviderManager;
   protected $configFactory;
 
-  public function __construct(Connection $database, Client $http_client, ConfigFactoryInterface $config_factory) {
+  public function __construct(Connection $database, AiProviderPluginManager $ai_provider_manager, ConfigFactoryInterface $config_factory) {
     $this->database = $database;
-    $this->httpClient = $http_client;
+    $this->aiProviderManager = $ai_provider_manager;
     $this->configFactory = $config_factory;
   }
 
@@ -49,7 +51,7 @@ class LogAnalyzer {
     return $logs;
   }
 
-  public function analyzeWithGrok(array $logs): array {
+  public function analyzeWithAi(array $logs): array {
     if (empty($logs)) {
       return [
         'analysis' => 'No logs available for analysis.',
@@ -60,9 +62,9 @@ class LogAnalyzer {
     $logsToSend = $logs;
     $prompt = $this->buildPrompt($logsToSend);
     $logDetails = $this->extractLogDetails($logsToSend);
-    $response = $this->callGrokApi($prompt);
+    $response = $this->callAiProvider($prompt);
 
-    return $this->handleGrokResponse($response, $logDetails);
+    return $this->handleAiResponse($response, $logDetails);
   }
 
   protected function buildPrompt(array $logs): string {
@@ -84,43 +86,37 @@ class LogAnalyzer {
     return $prompt;
   }
 
-  protected function callGrokApi(string $prompt): ?array {
+  protected function callAiProvider(string $prompt): ?ChatMessage {
     try {
-      $apiKey = $this->configFactory->get('ai_log_analysis.settings')->get('grok_api_key');
-
-      if (session_status() === PHP_SESSION_ACTIVE) {
-        session_write_close();
+      // Use the default provider (and model) as configured in the ai module (via ai.settings) for the chat operation type.
+      $defaultProvider = $this->aiProviderManager->getDefaultProviderForOperationType("chat");
+      if (empty($defaultProvider) || !isset($defaultProvider['provider_id']) || !isset($defaultProvider['model_id'])) {
+         \Drupal::logger('ai_log_analysis')->error("No default provider (or model) configured for chat operation type.");
+         return NULL;
       }
-
-      $response = $this->httpClient->post('https://api.groq.com/openai/v1/chat/completions', [
-        'headers' => [
-          'Authorization' => 'Bearer ' . $apiKey,
-          'Content-Type' => 'application/json',
-        ],
-        'json' => [
-          'model' => 'llama3-8b-8192',
-          'messages' => [['role' => 'user', 'content' => $prompt]],
-          'max_tokens' => 800,
-        ],
-      ]);
-
-      return json_decode($response->getBody()->getContents(), TRUE);
-    }
-    catch (\Exception $e) {
-      \Drupal::logger('ai_log_analysis')->error('Grok API error: @message', ['@message' => $e->getMessage()]);
+      $provider = $this->aiProviderManager->createInstance($defaultProvider['provider_id']);
+      // Optionally, set a system role (if desired).
+      $provider->setChatSystemRole("You are a helpful assistant analyzing Drupal logs.");
+      // Create a ChatInput with a single ChatMessage (role "user" and content $prompt).
+      $input = new ChatInput([new ChatMessage("user", $prompt)]);
+      // Call the chat method (using the default model) and get a normalized ChatMessage.
+      $response = $provider->chat($input, $defaultProvider['model_id'], ['ai_log_analysis'])->getNormalized();
+      return $response;
+    } catch (\Exception $e) {
+      \Drupal::logger('ai_log_analysis')->error("AI provider error: @message", ['@message' => $e->getMessage()]);
       return NULL;
     }
   }
 
-  protected function handleGrokResponse(?array $response, array $logDetails): array {
-    if (!empty($response['choices'][0]['message']['content'])) {
+  protected function handleAiResponse(?ChatMessage $response, array $logDetails): array {
+    if ($response) {
       return [
-        'analysis' => $response['choices'][0]['message']['content'],
+        'analysis' => $response->getText(),
         'snippets' => $logDetails,
       ];
     }
     return [
-      'analysis' => 'No valid response from Grok AI.',
+      'analysis' => 'No valid response from AI provider.',
       'snippets' => $logDetails,
     ];
   }

@@ -1,7 +1,7 @@
 services:
   ai_log_analysis.log_analyzer:
     class: Drupal\ai_log_analysis\Service\LogAnalyzer
-    arguments: ['@database', '@http_client', '@config.factory', '@cache.default']
+    arguments: ['@database', '@ai.provider', '@config.factory']
 
   ai_log_analysis.commands:
     class: Drupal\ai_log_analysis\Command\ErrorLogAnalyzerCommand
