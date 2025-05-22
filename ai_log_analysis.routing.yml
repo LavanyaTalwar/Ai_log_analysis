@@ -15,8 +15,16 @@ ai_log_analysis.logs:
     _permission: 'administer site configuration'
 
 ai_log_analysis.analyze:
-  path: '/admin/ai-log-analysis/analyze/{key}'
+  path: '/admin/ai-log-analysis/logs/{key}'
   defaults:
     _controller: '\Drupal\ai_log_analysis\Controller\LogController::analyze'
+  requirements:
+    _permission: 'administer site configuration'
+
+ai_log_analysis.clear_logs:
+  path: '/admin/reports/custom-logs/clear'
+  defaults:
+    _controller: '\Drupal\ai_log_analysis\Controller\LogController::clearLogs'
+    _title: 'Clear Logs'
   requirements:
     _permission: 'administer site configuration'

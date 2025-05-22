@@ -33,12 +33,32 @@ class ErrorLogAnalyzerCommand extends DrushCommands {
   }
 
   /**
+   * Define CLI options and mark them as accepting values.
+   *
+   * @var array
+   */
+  protected $options = [
+    'severity' => [
+      'description' => 'Filter logs by severity level (e.g., error).',
+      'value' => 'required',
+    ],
+    'start_date' => [
+      'description' => 'Start date for logs (YYYY-MM-DD).',
+      'value' => 'required',
+    ],
+    'end_date' => [
+      'description' => 'End date for logs (YYYY-MM-DD).',
+      'value' => 'required',
+    ],
+  ];
+
+  /**
    * Analyze recent error logs using AI module.
    *
    * @command ai_log_analysis:analyze
    * @aliases ala-analyze
    *
-   * @option severity Filter logs by severity level.
+   * @option severity Filter logs by severity level (e.g., error).
    * @option start_date Start date for logs (YYYY-MM-DD).
    * @option end_date End date for logs (YYYY-MM-DD).
    *
@@ -46,11 +66,9 @@ class ErrorLogAnalyzerCommand extends DrushCommands {
    *   Analyze recent error logs with severity "error".
    */
   public function analyzeLogs(InputInterface $input, OutputInterface $output): void {
-    // Fetch options for filtering.
     $severity = $input->getOption('severity');
     $start_date = $input->getOption('start_date');
     $end_date = $input->getOption('end_date');
-
     // Fetch recent logs with optional filters.
     $logs = $this->logAnalyzer->getRecentDblogs(
     // Default limit of 10 logs.

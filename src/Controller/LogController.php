@@ -58,6 +58,18 @@ class LogController extends ControllerBase {
    *   A render array containing the logs table with pagination.
    */
   public function logsPage(): array {
+    $build['clear_logs'] = [
+      '#type' => 'link',
+      '#title' => $this->t('Clear all logs'),
+      '#url' => Url::fromRoute('ai_log_analysis.clear_logs'),
+      '#attributes' => [
+        'class' => ['button', 'button--danger'],
+        'onclick' => 'return confirm("Are you sure you want to delete all logs?");',
+      ],
+      '#prefix' => '<div class="clear-logs-button" style="margin-bottom: 20px;">',
+      '#suffix' => '</div>',
+    ];
+
     $headers = [
       $this->t('Timestamp'),
       $this->t('Type'),
@@ -94,18 +106,18 @@ class LogController extends ControllerBase {
       ];
     }
 
-    return [
-      '#type' => 'container',
-      'table' => [
-        '#type' => 'table',
-        '#header' => $headers,
-        '#rows' => $rows,
-        '#empty' => $this->t('No logs found.'),
-      ],
-      'pager' => [
-        '#type' => 'pager',
-      ],
+    $build['table'] = [
+      '#type' => 'table',
+      '#header' => $headers,
+      '#rows' => $rows,
+      '#empty' => $this->t('No logs found.'),
     ];
+
+    $build['pager'] = [
+      '#type' => 'pager',
+    ];
+
+    return $build;
   }
 
   /**
@@ -188,6 +200,18 @@ class LogController extends ControllerBase {
     ];
 
     return $build;
+  }
+
+  /**
+   * Clears all entries from the custom_log table.
+   *
+   * @return \Symfony\Component\HttpFoundation\RedirectResponse
+   *   A redirect back to the logs page.
+   */
+  public function clearLogs(): RedirectResponse {
+    $this->database->truncate('custom_log')->execute();
+    $this->messenger()->addStatus($this->t('All logs have been cleared.'));
+    return new RedirectResponse(Url::fromRoute('ai_log_analysis.logs')->toString());
   }
 
 }

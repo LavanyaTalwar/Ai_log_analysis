@@ -68,6 +68,7 @@ class CustomLogger implements LoggerInterface {
    * @var array<string>
    */
   protected array $ignoredPatterns = [
+    '/mkdir\(\): File exists/',
     'Since symfony/dependency-injection',
     'stat(): stat failed for',
     'yaml_parser_class',
@@ -98,6 +99,9 @@ class CustomLogger implements LoggerInterface {
       // Skip ignored patterns.
       foreach ($this->ignoredPatterns as $pattern) {
         if (strpos($message, $pattern) !== FALSE) {
+          return TRUE;
+        }
+        if (preg_match($pattern, $message)) {
           return TRUE;
         }
       }
