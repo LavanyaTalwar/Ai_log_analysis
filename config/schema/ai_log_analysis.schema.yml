@@ -5,5 +5,17 @@ ai_log_analysis.settings:
     log_limit:
       type: integer
       label: 'Number of Logs to Analyze'
+      description: 'Maximum number of logs to fetch for AI analysis (between 1 and 1000).'
       minimum: 1
       maximum: 1000
+    log_retention_days:
+      type: integer
+      label: 'Log Retention Days'
+      description: 'Number of days to keep logs before automatic cleanup.'
+      minimum: 1
+    max_logs_per_type:
+      type: integer
+      label: 'Maximum Logs Per Type'
+      description: 'Maximum number of logs to keep per log type (between 100 and 10000).'
+      minimum: 100
+      maximum: 10000

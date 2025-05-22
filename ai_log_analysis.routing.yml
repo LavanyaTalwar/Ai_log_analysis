@@ -7,16 +7,16 @@ ai_log_analysis.settings:
     _permission: 'administer site configuration'
 
 ai_log_analysis.logs:
-  path: '/ai-log-analysis/logs'
+  path: '/admin/ai-log-analysis/logs'
   defaults:
     _controller: '\Drupal\ai_log_analysis\Controller\LogController::logsPage'
     _title: 'Log Analyzer'
   requirements:
-    _permission: 'access administration pages'
+    _permission: 'administer site configuration'
 
 ai_log_analysis.analyze:
-  path: '/ai-log-analysis/analyze/{key}'
+  path: '/admin/ai-log-analysis/analyze/{key}'
   defaults:
     _controller: '\Drupal\ai_log_analysis\Controller\LogController::analyze'
   requirements:
-    _permission: 'access administration pages'
+    _permission: 'administer site configuration'

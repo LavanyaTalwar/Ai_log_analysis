@@ -2,8 +2,12 @@
 
 namespace Drupal\ai_log_analysis\Command;
 
+use Symfony\Component\Console\Helper\QuestionHelper;
+use Symfony\Component\Console\Question\Question;
 use Drupal\ai_log_analysis\Service\LogAnalyzer;
 use Drush\Commands\DrushCommands;
+use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * Provides a Drush command to analyze recent error logs using AI module.
@@ -15,7 +19,7 @@ class ErrorLogAnalyzerCommand extends DrushCommands {
    *
    * @var \Drupal\ai_log_analysis\Service\LogAnalyzer
    */
-  protected $logAnalyzer;
+  protected LogAnalyzer $logAnalyzer;
 
   /**
    * Constructs a new ErrorLogAnalyzerCommand object.
@@ -24,6 +28,7 @@ class ErrorLogAnalyzerCommand extends DrushCommands {
    *   The log analyzer service.
    */
   public function __construct(LogAnalyzer $log_analyzer) {
+    parent::__construct();
     $this->logAnalyzer = $log_analyzer;
   }
 
@@ -32,61 +37,84 @@ class ErrorLogAnalyzerCommand extends DrushCommands {
    *
    * @command ai_log_analysis:analyze
    * @aliases ala-analyze
+   *
+   * @option severity Filter logs by severity level.
+   * @option start_date Start date for logs (YYYY-MM-DD).
+   * @option end_date End date for logs (YYYY-MM-DD).
+   *
+   * @usage drush ai_log_analysis:analyze --severity=error
+   *   Analyze recent error logs with severity "error".
    */
-  public function analyzeLogs() {
-    // Fetch recent logs (limit configurable in LogAnalyzer or default).
-    $logs = $this->logAnalyzer->getRecentDblogs();
+  public function analyzeLogs(InputInterface $input, OutputInterface $output): void {
+    // Fetch options for filtering.
+    $severity = $input->getOption('severity');
+    $start_date = $input->getOption('start_date');
+    $end_date = $input->getOption('end_date');
+
+    // Fetch recent logs with optional filters.
+    $logs = $this->logAnalyzer->getRecentDblogs(
+    // Default limit of 10 logs.
+      10,
+      $severity ? (string) $severity : NULL,
+      $start_date,
+      $end_date
+    );
 
     if (empty($logs)) {
-      $this->output()->writeln("No recent logs found.");
+      $output->writeln("<comment>No recent logs found with the specified criteria.</comment>");
       return;
     }
 
-    $this->output()->writeln("\n====== 📝 Select a log to analyze ======\n");
+    $output->writeln("\n====== 📝 Select a log to analyze ======\n");
 
     foreach ($logs as $index => $log) {
-      $summary = substr(strip_tags($log['message']), 0, 80);
-      $this->output()->writeln("[$index] {$log['timestamp']} - {$summary}");
+      $summary = mb_substr(strip_tags($log['message']), 0, 80);
+      $output->writeln("[$index] {$log['timestamp']} - {$summary}");
     }
 
-    $selected = $this->io()->ask('Enter the number of the log you want to analyze');
+    // Use Symfony's Question helper directly.
+    $question = new Question('Enter the number of the log you want to analyze: ');
+    $questionHelper = new QuestionHelper();
+    $selected = $questionHelper->ask($input, $output, $question);
 
     if (!is_numeric($selected) || !isset($logs[$selected])) {
-      $this->output()->writeln("<error>Invalid selection. Exiting.</error>");
+      $output->writeln("<error>Invalid selection. Exiting.</error>");
       return;
     }
 
-    $selectedLog = [$logs[$selected]];
+    $selectedLog = [$logs[(int) $selected]];
 
-    // Use the new AI-based analysis method from LogAnalyzer service.
-    $result = $this->logAnalyzer->analyzeWithAi($selectedLog);
+    try {
+      // Use the AI-based analysis method from LogAnalyzer service.
+      $result = $this->logAnalyzer->analyzeWithAi($selectedLog);
+    }
+    catch (\Exception $e) {
+      $output->writeln("<error>AI analysis failed: {$e->getMessage()}</error>");
+      return;
+    }
 
-    $this->output()->writeln("\n====== 🧠 AI Analysis ======\n");
+    $output->writeln("\n====== 🧠 AI Analysis ======\n");
 
     // Make *text* bold in output.
     $analysis = preg_replace_callback('/\*(.*?)\*/', function ($matches) {
       return "\033[1m" . $matches[1] . "\033[0m";
     }, $result['analysis']);
 
-    $this->output()->writeln($analysis);
+    $output->writeln($analysis);
 
     if (!empty($result['snippets'])) {
-      $this->output()->writeln("\n====== 💻 Code Snippets ======\n");
+      $output->writeln("\n====== 💻 Code Snippets ======\n");
 
       foreach ($result['snippets'] as $entry) {
-        $this->output()->writeln("🕒 Timestamp: {$entry['timestamp']}");
-        $this->output()->writeln("📘 Type: {$entry['type']}");
-        $this->output()->writeln("⚠️ Severity: {$entry['severity']}");
-        $this->output()->writeln("📝 Message: {$entry['message']}");
+        $output->writeln("🕒 Timestamp: {$entry['timestamp']}");
+        $output->writeln("📘 Type: {$entry['type']}");
+        $output->writeln("⚠️ Severity: {$entry['severity']}");
+        $output->writeln("📝 Message: {$entry['message']}");
 
-        if (!empty($entry['snippet'])) {
-          $this->output()->writeln("📄 Snippet:\n" . $entry['snippet']);
-        }
-        else {
-          $this->output()->writeln("📄 Snippet: Not available.");
-        }
+        $snippet = $entry['snippet'] ?? 'Not available.';
+        $output->writeln("📄 Snippet:\n" . $snippet);
 
-        $this->output()->writeln(str_repeat('-', 60));
+        $output->writeln(str_repeat('-', 60));
       }
     }
   }

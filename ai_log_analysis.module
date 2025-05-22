@@ -1,13 +1,57 @@
 <?php
 
 /**
+ * @file
+ * Contains hooks and custom logic for the ai_log_analysis module.
+ */
+
+/**
  * Implements hook_cron().
  */
 function ai_log_analysis_cron() {
-  $max_age = \Drupal::config('ai_log_analysis.settings')->get('log_retention_days') ?? 30;
-  $cutoff = \Drupal::time()->getCurrentTime() - ($max_age * 86400);
+  $config = \Drupal::config('ai_log_analysis.settings');
+  $log_retention_days = $config->get('log_retention_days') ?? 30;
+  $max_logs_per_type = $config->get('max_logs_per_type') ?? 1000;
 
-  \Drupal::database()->delete('custom_log')
-    ->condition('timestamp', $cutoff, '<')
+  // Calculate the cutoff timestamp.
+  $cutoff_timestamp = \Drupal::time()->getRequestTime() - ($log_retention_days * 86400);
+
+  // Get database connection.
+  $database = \Drupal::database();
+
+  // Delete old logs in a single operation.
+  $deleted_count = $database->delete('custom_log')
+    ->condition('timestamp', $cutoff_timestamp, '<')
     ->execute();
+
+  // For each log type, keep only the most recent N logs.
+  $types = $database->select('custom_log', 'cl')
+    ->fields('cl', ['type'])
+    ->distinct()
+    ->execute()
+    ->fetchCol();
+
+  foreach ($types as $type) {
+    // Get IDs of logs to keep for this type.
+    $ids_to_keep = $database->select('custom_log', 'cl')
+      ->fields('cl', ['id'])
+      ->condition('type', $type)
+      ->orderBy('timestamp', 'DESC')
+      ->range(0, $max_logs_per_type)
+      ->execute()
+      ->fetchCol();
+
+    if (!empty($ids_to_keep)) {
+      // Delete excess logs for this type.
+      $database->delete('custom_log')
+        ->condition('type', $type)
+        ->condition('id', $ids_to_keep, 'NOT IN')
+        ->execute();
+    }
+  }
+
+  // Only log if something was actually deleted.
+  if ($deleted_count > 0) {
+    \Drupal::logger('ai_log_analysis')->notice('Cleaned up @count old log entries.', ['@count' => $deleted_count]);
+  }
 }

@@ -1,6 +1,6 @@
 ai_log_analysis.settings:
   title: 'AI Log Analysis Settings'
   description: 'Configure settings for AI Log Analysis module.'
-  parent: system.admin_config_system
   route_name: ai_log_analysis.settings
+  parent: system.admin_config_system
   weight: 100

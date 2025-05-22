@@ -5,9 +5,9 @@ namespace Drupal\ai_log_analysis\Controller;
 use Drupal\Core\Controller\ControllerBase;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\ai_log_analysis\Service\LogAnalyzer;
-use Symfony\Component\HttpFoundation\RedirectResponse;
-use Drupal\Core\Url;
 use Drupal\Core\Database\Connection;
+use Drupal\Core\Url;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 
 /**
  * Controller for displaying and analyzing custom logs.
@@ -19,17 +19,22 @@ class LogController extends ControllerBase {
    *
    * @var \Drupal\ai_log_analysis\Service\LogAnalyzer
    */
-  protected $analyzer;
+  protected LogAnalyzer $analyzer;
 
   /**
    * The database connection.
    *
    * @var \Drupal\Core\Database\Connection
    */
-  protected $database;
+  protected Connection $database;
 
   /**
-   * Constructs the controller.
+   * Constructs a LogController object.
+   *
+   * @param \Drupal\ai_log_analysis\Service\LogAnalyzer $analyzer
+   *   The log analyzer service.
+   * @param \Drupal\Core\Database\Connection $database
+   *   The database connection service.
    */
   public function __construct(LogAnalyzer $analyzer, Connection $database) {
     $this->analyzer = $analyzer;
@@ -39,7 +44,7 @@ class LogController extends ControllerBase {
   /**
    * {@inheritdoc}
    */
-  public static function create(ContainerInterface $container) {
+  public static function create(ContainerInterface $container): self {
     return new static(
       $container->get('ai_log_analysis.log_analyzer'),
       $container->get('database')
@@ -48,9 +53,18 @@ class LogController extends ControllerBase {
 
   /**
    * Page showing paginated custom logs with Analyze buttons.
+   *
+   * @return array
+   *   A render array containing the logs table with pagination.
    */
-  public function logsPage() {
-    $headers = ['Timestamp', 'Type', 'Severity', 'Message', 'Operations'];
+  public function logsPage(): array {
+    $headers = [
+      $this->t('Timestamp'),
+      $this->t('Type'),
+      $this->t('Severity'),
+      $this->t('Message'),
+      $this->t('Operations'),
+    ];
 
     $query = $this->database->select('custom_log', 'cl')
       ->extend('Drupal\Core\Database\Query\PagerSelectExtender')
@@ -66,9 +80,9 @@ class LogController extends ControllerBase {
 
       $rows[] = [
         date('Y-m-d H:i:s', $row->timestamp),
-        $row->type,
-        $row->severity,
-        substr($row->message, 0, 100) . '...',
+        htmlspecialchars($row->type, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+        htmlspecialchars((string) $row->severity, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+        htmlspecialchars(mb_substr($row->message, 0, 100), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '...',
         [
           'data' => [
             '#type' => 'link',
@@ -96,6 +110,12 @@ class LogController extends ControllerBase {
 
   /**
    * Handles analysis of a specific custom log entry by ID.
+   *
+   * @param int|string $key
+   *   The log entry ID.
+   *
+   * @return array|\Symfony\Component\HttpFoundation\RedirectResponse
+   *   A render array with analysis results or a redirect response on error.
    */
   public function analyze($key) {
     $log = $this->database->select('custom_log', 'cl')
@@ -111,21 +131,21 @@ class LogController extends ControllerBase {
 
     $result = $this->analyzer->analyzeWithAi([$log]);
 
-    $convertBoldMarkdown = function(string $text): string {
-      // Remove triple backticks to avoid raw markdown fences in output
+    $convertBoldMarkdown = function (string $text): string {
+      // Remove triple backticks to avoid raw markdown fences in output.
       $text = preg_replace('/```/', '', $text);
 
-      // Escape HTML special chars
+      // Escape HTML special chars.
       $escaped = htmlspecialchars($text, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 
-      // Convert **bold** markdown to <strong>
+      // Convert **bold** markdown to <strong>.
       $with_bold = preg_replace('/\*\*(.+?)\*\*/', '<strong>$1</strong>', $escaped);
 
-      // Convert newlines to <br>
+      // Convert newlines to <br>.
       return nl2br($with_bold);
     };
 
-    $analysis_markup = $convertBoldMarkdown($result['analysis'] ?? 'No analysis available.');
+    $analysis_markup = $convertBoldMarkdown($result['analysis'] ?? $this->t('No analysis available.'));
 
     $build = [
       '#type' => 'container',

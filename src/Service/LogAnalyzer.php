@@ -1,4 +1,5 @@
 <?php
+
 namespace Drupal\ai_log_analysis\Service;
 
 use Drupal\Core\Database\Connection;
@@ -6,51 +7,133 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\ai\AiProviderPluginManager;
 use Drupal\ai\OperationType\Chat\ChatInput;
 use Drupal\ai\OperationType\Chat\ChatMessage;
+use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 
 /**
- * Service to analyze logs using the contrib ai module (via ai.provider).
+ * Service to analyze logs using the contrib AI module (via ai.provider).
  */
 class LogAnalyzer {
+  /**
+   * The database connection used for storing and retrieving log entries.
+   *
+   * @var \Drupal\Core\Database\Connection
+   */
+  protected Connection $database;
 
-  protected $database;
-  protected $aiProviderManager;
-  protected $configFactory;
+  /**
+   * The AI provider plugin manager for discovering and instantiating plugins.
+   *
+   * @var \Drupal\ai\AiProviderPluginManager
+   */
+  protected AiProviderPluginManager $aiProviderManager;
 
-  public function __construct(Connection $database, AiProviderPluginManager $ai_provider_manager, ConfigFactoryInterface $config_factory) {
+  /**
+   * The configuration factory service for accessing configuration objects.
+   *
+   * @var \Drupal\Core\Config\ConfigFactoryInterface
+   */
+  protected ConfigFactoryInterface $configFactory;
+
+  /**
+   * The logger channel factory service for retrieving logger channels.
+   *
+   * @var \Drupal\Core\Logger\LoggerChannelFactoryInterface
+   */
+  protected LoggerChannelFactoryInterface $loggerFactory;
+
+  /**
+   * Constructs the LogAnalyzer service.
+   */
+  public function __construct(
+    Connection $database,
+    AiProviderPluginManager $ai_provider_manager,
+    ConfigFactoryInterface $config_factory,
+    LoggerChannelFactoryInterface $logger_factory,
+  ) {
     $this->database = $database;
     $this->aiProviderManager = $ai_provider_manager;
     $this->configFactory = $config_factory;
+    $this->loggerFactory = $logger_factory;
   }
 
-  public function getRecentDblogs($limit = 10) {
+  /**
+   * Fetches recent custom log entries with optional filtering.
+   *
+   * @param int $limit
+   *   The number of recent logs to retrieve.
+   * @param string|null $severity
+   *   Optional severity level to filter logs (e.g. 'error', 'warning').
+   * @param string|null $start_date
+   *   Optional start date (Y-m-d) to filter logs from.
+   * @param string|null $end_date
+   *   Optional end date (Y-m-d) to filter logs until.
+   *
+   * @return array
+   *   An array of log entry data.
+   */
+  public function getRecentDblogs(int $limit = 10, ?string $severity = NULL, ?string $start_date = NULL, ?string $end_date = NULL): array {
     $query = $this->database->select('custom_log', 'w')
       ->fields('w', ['id', 'type', 'message', 'severity', 'timestamp'])
       ->orderBy('timestamp', 'DESC')
       ->range(0, $limit);
+
+    if ($severity !== NULL) {
+      $query->condition('severity', $severity);
+    }
+
+    if (!empty($start_date)) {
+      $start_timestamp = strtotime($start_date);
+      if ($start_timestamp !== FALSE) {
+        $query->condition('timestamp', $start_timestamp, '>=');
+      }
+    }
+
+    if (!empty($end_date)) {
+      $end_timestamp = strtotime($end_date . ' 23:59:59');
+      if ($end_timestamp !== FALSE) {
+        $query->condition('timestamp', $end_timestamp, '<=');
+      }
+    }
 
     $results = $query->execute()->fetchAll();
 
     $logs = [];
     foreach ($results as $row) {
       $message = $row->message;
+
       if (!empty($row->variables)) {
         $variables = @unserialize($row->variables, ['allowed_classes' => FALSE]);
         if (is_array($variables)) {
-          $message = strtr($message, $variables);
+          $safe_variables = [];
+          foreach ($variables as $key => $value) {
+            if (is_scalar($value)) {
+              $safe_variables[$key] = $value;
+            }
+          }
+          $message = strtr($message, $safe_variables);
         }
       }
 
       $logs[] = [
-        'type' => $row->type,
-        'message' => $message,
-        'severity' => $row->severity,
-        'timestamp' => date('Y-m-d H:i:s', $row->timestamp),
+        'type' => htmlspecialchars($row->type, ENT_QUOTES, 'UTF-8'),
+        'message' => htmlspecialchars($message, ENT_QUOTES, 'UTF-8'),
+        'severity' => (int) $row->severity,
+        'timestamp' => date('Y-m-d H:i:s', (int) $row->timestamp),
       ];
     }
 
     return $logs;
   }
 
+  /**
+   * Analyze logs using AI.
+   *
+   * @param array $logs
+   *   The log entries to analyze.
+   *
+   * @return array
+   *   AI analysis response with optional code snippets.
+   */
   public function analyzeWithAi(array $logs): array {
     if (empty($logs)) {
       return [
@@ -59,14 +142,16 @@ class LogAnalyzer {
       ];
     }
 
-    $logsToSend = $logs;
-    $prompt = $this->buildPrompt($logsToSend);
-    $logDetails = $this->extractLogDetails($logsToSend);
+    $prompt = $this->buildPrompt($logs);
+    $logDetails = $this->extractLogDetails($logs);
     $response = $this->callAiProvider($prompt);
 
     return $this->handleAiResponse($response, $logDetails);
   }
 
+  /**
+   * Builds the prompt to send to the AI provider.
+   */
   protected function buildPrompt(array $logs): string {
     $prompt = "🚨 The Drupal site has encountered errors. Analyze the logs below and suggest causes and fixes. Format your response:\n\n";
 
@@ -86,28 +171,33 @@ class LogAnalyzer {
     return $prompt;
   }
 
+  /**
+   * Calls the AI provider for analysis.
+   */
   protected function callAiProvider(string $prompt): ?ChatMessage {
     try {
-      // Use the default provider (and model) as configured in the ai module (via ai.settings) for the chat operation type.
       $defaultProvider = $this->aiProviderManager->getDefaultProviderForOperationType("chat");
-      if (empty($defaultProvider) || !isset($defaultProvider['provider_id']) || !isset($defaultProvider['model_id'])) {
-         \Drupal::logger('ai_log_analysis')->error("No default provider (or model) configured for chat operation type.");
-         return NULL;
+
+      if (empty($defaultProvider['provider_id']) || empty($defaultProvider['model_id'])) {
+        $this->loggerFactory->get('ai_log_analysis')->error("No default AI provider or model configured.");
+        return NULL;
       }
+
       $provider = $this->aiProviderManager->createInstance($defaultProvider['provider_id']);
-      // Optionally, set a system role (if desired).
       $provider->setChatSystemRole("You are a helpful assistant analyzing Drupal logs.");
-      // Create a ChatInput with a single ChatMessage (role "user" and content $prompt).
       $input = new ChatInput([new ChatMessage("user", $prompt)]);
-      // Call the chat method (using the default model) and get a normalized ChatMessage.
-      $response = $provider->chat($input, $defaultProvider['model_id'], ['ai_log_analysis'])->getNormalized();
-      return $response;
-    } catch (\Exception $e) {
-      \Drupal::logger('ai_log_analysis')->error("AI provider error: @message", ['@message' => $e->getMessage()]);
+
+      return $provider->chat($input, $defaultProvider['model_id'], ['ai_log_analysis'])->getNormalized();
+    }
+    catch (\Exception $e) {
+      $this->loggerFactory->get('ai_log_analysis')->error("AI provider error: @message", ['@message' => $e->getMessage()]);
       return NULL;
     }
   }
 
+  /**
+   * Handles AI response and formats the result.
+   */
   protected function handleAiResponse(?ChatMessage $response, array $logDetails): array {
     if ($response) {
       return [
@@ -121,6 +211,9 @@ class LogAnalyzer {
     ];
   }
 
+  /**
+   * Extracts relevant code snippets from logs.
+   */
   protected function extractLogDetails(array $logs): array {
     $details = [];
     foreach ($logs as $log) {
@@ -130,7 +223,13 @@ class LogAnalyzer {
     return $details;
   }
 
+  /**
+   * Extracts code snippet from a log message if possible.
+   */
   public function getCodeSnippetFromLog(string $message): ?string {
+    $filePath = '';
+    $lineNumber = 0;
+
     if (preg_match('/in ([^\s]+\.php) on line (\d+)/', $message, $matches)) {
       $filePath = $matches[1];
       $lineNumber = (int) $matches[2];
@@ -139,19 +238,20 @@ class LogAnalyzer {
       $lineNumber = (int) $matches[1];
       $filePath = $matches[2];
     }
-    else {
-      return NULL;
-    }
 
-    if (file_exists($filePath)) {
-      $lines = file($filePath);
+    if ($filePath && is_file($filePath)) {
+      $lines = @file($filePath, FILE_IGNORE_NEW_LINES);
+      if (!$lines) {
+        return NULL;
+      }
+
       $start = max(0, $lineNumber - 11);
       $end = min(count($lines) - 1, $lineNumber + 9);
 
       $snippet = "Code snippet from $filePath around line $lineNumber:\n\n";
       for ($i = $start; $i <= $end; $i++) {
         $prefix = ($i + 1 === $lineNumber) ? '>> ' : '   ';
-        $snippet .= $prefix . str_pad($i + 1, 4, ' ', STR_PAD_LEFT) . ': ' . $lines[$i];
+        $snippet .= $prefix . str_pad($i + 1, 4, ' ', STR_PAD_LEFT) . ': ' . $lines[$i] . "\n";
       }
       return $snippet;
     }

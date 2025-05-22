@@ -4,4 +4,4 @@ description: 'Analyzes logs during a crash and uses AI to provide insights and f
 core_version_requirement: ^10
 package: Custom
 dependencies:
-  - ai
+  - drupal:ai

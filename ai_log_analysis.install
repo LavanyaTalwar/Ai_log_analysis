@@ -1,6 +1,11 @@
 <?php
 
 /**
+ * @file
+ * Install, update, and uninstall functions for the ai_log_analysis module.
+ */
+
+/**
  * Implements hook_schema().
  */
 function ai_log_analysis_schema() {
@@ -51,6 +56,11 @@ function ai_log_analysis_schema() {
         'not null' => TRUE,
         'default' => 0,
       ],
+      'variables' => [
+        'type' => 'blob',
+        'not null' => FALSE,
+        'description' => 'Serialized variables (if any) for the log message.',
+      ],
     ],
     'primary key' => ['id'],
     'indexes' => [
@@ -66,7 +76,26 @@ function ai_log_analysis_schema() {
  * Implements hook_uninstall().
  */
 function ai_log_analysis_uninstall() {
+  // Drop the custom log table on uninstall.
   \Drupal::database()->schema()->dropTable('custom_log');
 
+  // Delete configuration for this module.
   \Drupal::configFactory()->getEditable('ai_log_analysis.settings')->delete();
+}
+
+/**
+ * Implements hook_update_N().
+ *
+ * Add a "variables" column (blob) to the custom_log table if it does not exist.
+ */
+function ai_log_analysis_update_8001() {
+  $connection = \Drupal::database();
+  $schema = $connection->schema();
+  if ($schema->tableExists('custom_log') && !$schema->fieldExists('custom_log', 'variables')) {
+    $schema->addField('custom_log', 'variables', [
+      'type' => 'blob',
+      'not null' => FALSE,
+      'description' => 'Serialized variables (if any) for the log message.',
+    ]);
+  }
 }
