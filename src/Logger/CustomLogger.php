@@ -69,10 +69,10 @@ class CustomLogger implements LoggerInterface {
    */
   protected array $ignoredPatterns = [
     '/mkdir\(\): File exists/',
-    'Since symfony/dependency-injection',
-    'stat(): stat failed for',
-    'yaml_parser_class',
-    'The "yaml_parser_class" setting is deprecated',
+    '/Since symfony\/dependency-injection/',
+    '/stat\(\): stat failed for/',
+    '/yaml_parser_class/',
+    '/The "yaml_parser_class" setting is deprecated/',
   ];
 
   /**
@@ -98,13 +98,12 @@ class CustomLogger implements LoggerInterface {
     set_error_handler(function ($severity, $message, $file, $line) {
       // Skip ignored patterns.
       foreach ($this->ignoredPatterns as $pattern) {
-        if (strpos($message, $pattern) !== FALSE) {
-          return TRUE;
+        if (@preg_match($pattern, $message)) {
+          if (preg_match($pattern, $message)) {
+            return TRUE;
+          }
         }
-        if (preg_match($pattern, $message)) {
-          return TRUE;
-        }
-      }
+      }   
 
       // Only log if severity is high enough.
       if ($severity <= E_USER_WARNING) {

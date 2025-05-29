@@ -74,12 +74,11 @@ class LogAnalyzer {
   public function getRecentDblogs(int $limit = 10, ?string $severity = NULL, ?string $start_date = NULL, ?string $end_date = NULL): array {
     $query = $this->database->select('custom_log', 'w')
       ->fields('w', ['id', 'type', 'message', 'severity', 'timestamp'])
-      ->orderBy('timestamp', 'DESC')
-      ->range(0, $limit);
+      ->orderBy('timestamp', 'DESC');
 
-    if ($severity !== NULL) {
-      $query->condition('severity', $severity);
-    }
+      if ($severity !== NULL) {
+        $query->condition('severity', $severity);
+      }
 
     if (!empty($start_date)) {
       $start_timestamp = strtotime($start_date);
@@ -94,6 +93,8 @@ class LogAnalyzer {
         $query->condition('timestamp', $end_timestamp, '<=');
       }
     }
+
+    $query->range(0, $limit);
 
     $results = $query->execute()->fetchAll();
 

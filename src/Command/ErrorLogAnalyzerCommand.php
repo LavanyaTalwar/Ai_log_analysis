@@ -57,26 +57,19 @@ class ErrorLogAnalyzerCommand extends DrushCommands {
    *
    * @command ai_log_analysis:analyze
    * @aliases ala-analyze
-   *
-   * @option severity Filter logs by severity level (e.g., error).
-   * @option start_date Start date for logs (YYYY-MM-DD).
-   * @option end_date End date for logs (YYYY-MM-DD).
-   *
-   * @usage drush ai_log_analysis:analyze --severity=error
+   * 
+   * @option severity Filter by severity (string, e.g., Error, Critical).
+   * @option start_date Filter from start date (Y-m-d).
+   * @option end_date Filter up to end date (Y-m-d).
+      * @usage drush ai_log_analysis:analyze --severity=error
    *   Analyze recent error logs with severity "error".
    */
-  public function analyzeLogs(InputInterface $input, OutputInterface $output): void {
-    $severity = $input->getOption('severity');
-    $start_date = $input->getOption('start_date');
-    $end_date = $input->getOption('end_date');
-    // Fetch recent logs with optional filters.
-    $logs = $this->logAnalyzer->getRecentDblogs(
-    // Default limit of 10 logs.
-      10,
-      $severity ? (string) $severity : NULL,
-      $start_date,
-      $end_date
-    );
+  public function analyzeLogs(InputInterface $input, OutputInterface $output, array $options = ['severity' => NULL, 'start_date' => NULL, 'end_date' => NULL]) {
+    $severity = $options['severity'] ?? NULL;
+    $start_date = $options['start_date'] ?? NULL;
+    $end_date = $options['end_date'] ?? NULL;
+
+    $logs = $this->logAnalyzer->getRecentDblogs(10, $severity, $start_date, $end_date);
 
     if (empty($logs)) {
       $output->writeln("<comment>No recent logs found with the specified criteria.</comment>");
