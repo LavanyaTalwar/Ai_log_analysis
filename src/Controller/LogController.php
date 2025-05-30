@@ -8,9 +8,10 @@ use Drupal\ai_log_analysis\Service\LogAnalyzer;
 use Drupal\Core\Database\Connection;
 use Drupal\Core\Url;
 use Symfony\Component\HttpFoundation\RedirectResponse;
+use Drupal\Core\TempStore\PrivateTempStoreFactory;
 
 /**
- * Controller for displaying and analyzing custom logs.
+ * Controller for displaying and analyzing logs.
  */
 class LogController extends ControllerBase {
 
@@ -29,16 +30,26 @@ class LogController extends ControllerBase {
   protected Connection $database;
 
   /**
+   * The private tempstore for this module.
+   *
+   * @var \Drupal\Core\TempStore\PrivateTempStoreFactory
+   */
+  protected $tempStore;
+
+  /**
    * Constructs a LogController object.
    *
    * @param \Drupal\ai_log_analysis\Service\LogAnalyzer $analyzer
    *   The log analyzer service.
    * @param \Drupal\Core\Database\Connection $database
    *   The database connection service.
+   * @param \Drupal\Core\TempStore\PrivateTempStoreFactory $temp_store_factory
+   *   The private tempstore factory.
    */
-  public function __construct(LogAnalyzer $analyzer, Connection $database) {
+  public function __construct(LogAnalyzer $analyzer, Connection $database, PrivateTempStoreFactory $temp_store_factory) {
     $this->analyzer = $analyzer;
     $this->database = $database;
+    $this->tempStore = $temp_store_factory->get('ai_log_analysis');
   }
 
   /**
@@ -47,7 +58,8 @@ class LogController extends ControllerBase {
   public static function create(ContainerInterface $container): self {
     return new static(
       $container->get('ai_log_analysis.log_analyzer'),
-      $container->get('database')
+      $container->get('database'),
+      $container->get('user.private_tempstore')
     );
   }
 
@@ -58,6 +70,14 @@ class LogController extends ControllerBase {
    *   A render array containing the logs table with pagination.
    */
   public function logsPage(): array {
+    // Check if the custom_log table exists.
+    if (!$this->database->schema()->tableExists('custom_log')) {
+      return [
+        '#type' => 'markup',
+        '#markup' => $this->t('The custom log table has not been created. Please uninstall and reinstall the module.'),
+      ];
+    }
+
     $build['clear_logs'] = [
       '#type' => 'link',
       '#title' => $this->t('Clear all logs'),
@@ -213,5 +233,5 @@ class LogController extends ControllerBase {
     $this->messenger()->addStatus($this->t('All logs have been cleared.'));
     return new RedirectResponse(Url::fromRoute('ai_log_analysis.logs')->toString());
   }
-
+  
 }
