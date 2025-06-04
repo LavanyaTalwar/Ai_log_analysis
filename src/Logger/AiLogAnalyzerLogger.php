@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Drupal\ai_log_analysis\Logger;
 
 use Drupal\Core\Database\Connection;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Drupal\Core\Logger\LogMessageParserInterface;
 use Drupal\Core\Logger\RfcLogLevel;
 use Drupal\Core\Config\ConfigFactoryInterface;
@@ -13,12 +14,12 @@ use Psr\Log\LogLevel;
 use Drupal\Component\Serialization\Json;
 
 /**
- * Custom logger that logs to the custom_log table with rate limiting.
+ * Custom logger that logs to the ai_log_analysis_table table with rate limiting.
  *
  * This logger captures all log messages from all channels and stores them
- * in the custom_log table, independent of the dblog module.
+ * in the ai_log_analysis_table table, independent of the dblog module.
  */
-class CustomLogger implements LoggerInterface {
+class AiLogAnalyzerLogger implements LoggerInterface {
 
   /**
    * The database connection.
@@ -40,6 +41,16 @@ class CustomLogger implements LoggerInterface {
    * @var \Drupal\Core\Config\ConfigFactoryInterface
    */
   protected ConfigFactoryInterface $configFactory;
+
+  /**
+   * The request stack service to access the current request.
+   *
+   * Used to retrieve data like request URI and client IP
+   * without using \Drupal::request().
+   *
+   * @var \Symfony\Component\HttpFoundation\RequestStack
+   */
+  protected RequestStack $requestStack;
 
   /**
    * Collection of forwarded loggers.
@@ -83,16 +94,18 @@ class CustomLogger implements LoggerInterface {
   protected bool $inLog = FALSE;
 
   /**
-   * Constructs a CustomLogger object.
+   * Constructs a AiLogAnalyzerLogger object.
    */
   public function __construct(
     Connection $database,
     LogMessageParserInterface $parser,
     ConfigFactoryInterface $config_factory,
+    RequestStack $request_stack,
   ) {
     $this->database = $database;
     $this->parser = $parser;
     $this->configFactory = $config_factory;
+    $this->requestStack = $request_stack;
 
     // Register PHP error handler with filtering.
     set_error_handler(function ($severity, $message, $file, $line) {
@@ -103,18 +116,19 @@ class CustomLogger implements LoggerInterface {
             return TRUE;
           }
         }
-      }   
+      }
 
       // Only log if severity is high enough.
       if ($severity <= E_USER_WARNING) {
+        $request = $this->requestStack->getCurrentRequest();
         \Drupal::logger('php')->error('%message in %file on line %line', [
           '%message' => $message,
           '%file' => $file,
           '%line' => $line,
           'severity' => $severity,
           'channel' => 'php',
-          'request_uri' => \Drupal::request()->getRequestUri(),
-          'ip' => \Drupal::request()->getClientIp(),
+          'request_uri' => $request?->getRequestUri() ?? '',
+          'ip' => $request?->getClientIp() ?? '',
         ]);
       }
       return TRUE;
@@ -132,14 +146,15 @@ class CustomLogger implements LoggerInterface {
         }
       }
 
+      $request = $this->requestStack->getCurrentRequest();
       \Drupal::logger('php')->critical('Uncaught exception: %message in %file on line %line', [
         '%message' => $message,
         '%file' => $e->getFile(),
         '%line' => $e->getLine(),
         'exception' => $e,
         'channel' => 'php',
-        'request_uri' => \Drupal::request()->getRequestUri(),
-        'ip' => \Drupal::request()->getClientIp(),
+        'request_uri' => $request?->getRequestUri() ?? '',
+        'ip' => $request?->getClientIp() ?? '',
       ]);
     });
 
@@ -155,13 +170,14 @@ class CustomLogger implements LoggerInterface {
           }
         }
 
+        $request = $this->requestStack->getCurrentRequest();
         \Drupal::logger('php')->critical('Fatal error: %message in %file on line %line', [
           '%message' => $error['message'],
           '%file' => $error['file'],
           '%line' => $error['line'],
           'channel' => 'php',
-          'request_uri' => \Drupal::request()->getRequestUri(),
-          'ip' => \Drupal::request()->getClientIp(),
+          'request_uri' => $request?->getRequestUri() ?? '',
+          'ip' => $request?->getClientIp() ?? '',
         ]);
       }
     });
@@ -271,35 +287,32 @@ class CustomLogger implements LoggerInterface {
       $placeholders = $this->parser->parseMessagePlaceholders($messageStr, $context);
       $interpolated = strtr($messageStr, $placeholders);
 
-      // Insert to custom_log.
-      $this->database->insert('custom_log')
+      // Insert to ai_log_analysis_table.
+      $this->database->insert('ai_log_analysis_table')
         ->fields([
           'type' => $channel,
           'message' => $interpolated,
           'severity' => $severity,
-          'link' => $context['link'] ?? '',
           'location' => $context['request_uri'] ?? '',
-          'referer' => $context['referer'] ?? '',
-          'hostname' => $context['ip'] ?? '',
           'timestamp' => $now,
           'variables' => !empty($context) ? $this->safeSerialize($context) : NULL,
         ])
         ->execute();
 
       // Enforce log retention policy.
-      $count = $this->database->select('custom_log', 'cl')
+      $count = $this->database->select('ai_log_analysis_table', 'cl')
         ->countQuery()
         ->execute()
         ->fetchField();
 
       $limit = 1000;
       if ($count > $limit) {
-        $subquery = $this->database->select('custom_log', 'cl2')
+        $subquery = $this->database->select('ai_log_analysis_table', 'cl2')
           ->fields('cl2', ['id'])
           ->orderBy('timestamp', 'DESC')
           ->range(0, $limit);
 
-        $this->database->delete('custom_log')
+        $this->database->delete('ai_log_analysis_table')
           ->condition('id', $subquery, 'NOT IN')
           ->execute();
       }
@@ -311,7 +324,7 @@ class CustomLogger implements LoggerInterface {
     }
     catch (\Exception $e) {
       // Write to PHP error log to avoid recursion.
-      error_log('ai_log_analysis failed to write to custom_log: ' . $e->getMessage());
+      error_log('ai_log_analysis failed to write to ai_log_analysis_table: ' . $e->getMessage());
     }
     finally {
       $this->inLog = FALSE;

@@ -7,9 +7,16 @@
 
 /**
  * Implements hook_schema().
+ *
+ * Defines the database schema for the AI Log Analysis module.
+ * This schema adds a new table to store log messages specifically
+ * for AI-based analysis. It does not interfere with or replace Drupal's
+ * core logging mechanisms or any other logging system.
+ *
+ * The number of logs retained is configurable via module settings.
  */
 function ai_log_analysis_schema() {
-  $schema['custom_log'] = [
+  $schema['ai_log_analysis_table'] = [
     'description' => 'Stores custom log messages.',
     'fields' => [
       'id' => [
@@ -31,24 +38,9 @@ function ai_log_analysis_schema() {
         'length' => 16,
         'not null' => TRUE,
       ],
-      'link' => [
-        'type' => 'varchar',
-        'length' => 255,
-        'not null' => FALSE,
-      ],
       'location' => [
         'type' => 'varchar',
         'length' => 255,
-        'not null' => FALSE,
-      ],
-      'referer' => [
-        'type' => 'varchar',
-        'length' => 255,
-        'not null' => FALSE,
-      ],
-      'hostname' => [
-        'type' => 'varchar',
-        'length' => 128,
         'not null' => FALSE,
       ],
       'timestamp' => [
@@ -77,18 +69,19 @@ function ai_log_analysis_schema() {
  */
 function ai_log_analysis_uninstall() {
   // Drop the custom log table on uninstall.
-  \Drupal::database()->schema()->dropTable('custom_log');
+  \Drupal::database()->schema()->dropTable('ai_log_analysis_table');
 
   // Delete configuration for this module.
-  \Drupal::configFactory()->getEditable('ai_log_analysis.settings')->delete();
+  \Drupal::configFactory()->getEditable('ai_log_analysis_settings')->delete();
 }
 
 /**
- * Implements hook_update_N().
+ * Implements hook_install().
  *
- * Add a "variables" column (blob) to the custom_log table if it does not exist.
+ * Creates the ai_log_analysis_table with all necessary fields,
+ * including the "variables" column (blob) for serialized variables.
  */
-function ai_log_analysis_update_8001() {
+function ai_log_analysis_install() {
   $connection = \Drupal::database();
   $schema = $connection->schema();
   if ($schema->tableExists('custom_log') && !$schema->fieldExists('custom_log', 'variables')) {

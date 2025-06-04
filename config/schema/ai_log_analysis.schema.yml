@@ -1,4 +1,4 @@
-ai_log_analysis.settings:
+ai_log_analysis_settings:
   type: config_object
   label: 'AI Log Analysis Settings'
   mapping:

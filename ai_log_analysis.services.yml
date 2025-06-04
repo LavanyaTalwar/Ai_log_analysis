@@ -3,15 +3,9 @@ services:
     class: Drupal\ai_log_analysis\Service\LogAnalyzer
     arguments: ['@database', '@ai.provider', '@config.factory', '@logger.factory']
 
-  ai_log_analysis.commands:
-    class: Drupal\ai_log_analysis\Command\ErrorLogAnalyzerCommand
-    arguments: ['@ai_log_analysis.log_analyzer']
-    tags:
-      - { name: drush.command }
-
   ai_log_analysis.logger:
-    class: Drupal\ai_log_analysis\Logger\CustomLogger
-    arguments: ['@database', '@logger.log_message_parser', '@config.factory']
+    class: Drupal\ai_log_analysis\Logger\AiLogAnalyzerLogger
+    arguments: ['@database', '@logger.log_message_parser', '@config.factory', '@request_stack']
     tags:
       - { name: logger, priority: 100 }
       - { name: service_collector, tag: 'logger', call: addLogger }

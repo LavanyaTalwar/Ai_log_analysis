@@ -72,13 +72,13 @@ class LogAnalyzer {
    *   An array of log entry data.
    */
   public function getRecentDblogs(int $limit = 10, ?string $severity = NULL, ?string $start_date = NULL, ?string $end_date = NULL): array {
-    $query = $this->database->select('custom_log', 'w')
+    $query = $this->database->select('ai_log_analysis_table', 'w')
       ->fields('w', ['id', 'type', 'message', 'severity', 'timestamp'])
       ->orderBy('timestamp', 'DESC');
 
-      if ($severity !== NULL) {
-        $query->condition('severity', $severity);
-      }
+    if ($severity !== NULL) {
+      $query->condition('severity', $severity);
+    }
 
     if (!empty($start_date)) {
       $start_timestamp = strtotime($start_date);

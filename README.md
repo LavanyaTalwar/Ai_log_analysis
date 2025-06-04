@@ -69,7 +69,7 @@ This module requires an AI provider module that integrates with Drupal’s
 
 ## Limitations
 
-- The AI analysis is based on logs stored in the custom_log table;
+- The AI analysis is based on logs stored in the ai_log_analysis_table table;
    ensure this table is properly populated.
 - The quality of AI insights depends on the completeness and accuracy of
    the log data available.
@@ -83,7 +83,7 @@ This module requires an AI provider module that integrates with Drupal’s
 
 ## Troubleshooting
 
-- Ensure the `custom_log` database table is populated and accessible by
+- Ensure the `ai_log_analysis_table` database table is populated and accessible by
    the module.
 - Verify the AI provider credentials and configuration are correct and active.
 - Check for any database connection issues that may prevent log retrieval.

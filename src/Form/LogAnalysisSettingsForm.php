@@ -14,7 +14,7 @@ class LogAnalysisSettingsForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   protected function getEditableConfigNames(): array {
-    return ['ai_log_analysis.settings'];
+    return ['ai_log_analysis_settings'];
   }
 
   /**
@@ -28,7 +28,7 @@ class LogAnalysisSettingsForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   public function buildForm(array $form, FormStateInterface $form_state): array {
-    $config = $this->config('ai_log_analysis.settings');
+    $config = $this->config('ai_log_analysis_settings');
 
     $form['log_limit'] = [
       '#type' => 'number',
@@ -83,7 +83,7 @@ class LogAnalysisSettingsForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   public function submitForm(array &$form, FormStateInterface $form_state): void {
-    $this->config('ai_log_analysis.settings')
+    $this->config('ai_log_analysis_settings')
       ->set('log_limit', (int) $form_state->getValue('log_limit'))
       ->set('log_retention_days', (int) $form_state->getValue('log_retention_days'))
       ->set('max_logs_per_type', (int) $form_state->getValue('max_logs_per_type'))

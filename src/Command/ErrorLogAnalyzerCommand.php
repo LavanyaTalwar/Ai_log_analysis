@@ -57,11 +57,11 @@ class ErrorLogAnalyzerCommand extends DrushCommands {
    *
    * @command ai_log_analysis:analyze
    * @aliases ala-analyze
-   * 
+   *
    * @option severity Filter by severity (string, e.g., Error, Critical).
    * @option start_date Filter from start date (Y-m-d).
    * @option end_date Filter up to end date (Y-m-d).
-      * @usage drush ai_log_analysis:analyze --severity=error
+   * @usage drush ai_log_analysis:analyze --severity=error
    *   Analyze recent error logs with severity "error".
    */
   public function analyzeLogs(InputInterface $input, OutputInterface $output, array $options = ['severity' => NULL, 'start_date' => NULL, 'end_date' => NULL]) {
