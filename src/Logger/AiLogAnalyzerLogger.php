@@ -15,7 +15,6 @@ use Drupal\Component\Serialization\Json;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\Component\Datetime\TimeInterface;
 
-
 /**
  * Custom logger that logs to the ai_log_analysis table with rate limiting.
  *
@@ -126,7 +125,7 @@ class AiLogAnalyzerLogger implements LoggerInterface {
     $this->configFactory = $config_factory;
     $this->requestStack = $request_stack;
     $this->loggerFactory = $logger_factory;
-    $this->time = $time;  
+    $this->time = $time;
 
     // Register PHP error handler with filtering.
     set_error_handler(function ($severity, $message, $file, $line) {

@@ -5,7 +5,7 @@ services:
 
   ai_log_analysis.logger:
     class: Drupal\ai_log_analysis\Logger\AiLogAnalyzerLogger
-    arguments: ['@database', '@logger.log_message_parser', '@config.factory', '@request_stack']
+    arguments: ['@database', '@logger.log_message_parser', '@config.factory', '@request_stack','@logger.factory', '@datetime.time']
     tags:
       - { name: logger, priority: 100 }
       - { name: service_collector, tag: 'logger', call: addLogger }
