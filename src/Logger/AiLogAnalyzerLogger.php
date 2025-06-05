@@ -12,6 +12,9 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use Drupal\Component\Serialization\Json;
+use Drupal\Core\Logger\LoggerChannelFactoryInterface;
+use Drupal\Component\Datetime\TimeInterface;
+
 
 /**
  * Custom logger that logs to the ai_log_analysis table with rate limiting.
@@ -51,6 +54,20 @@ class AiLogAnalyzerLogger implements LoggerInterface {
    * @var \Symfony\Component\HttpFoundation\RequestStack
    */
   protected RequestStack $requestStack;
+
+  /**
+   * The logger factory.
+   *
+   * @var \Drupal\Core\Logger\LoggerChannelFactoryInterface
+   */
+  protected LoggerChannelFactoryInterface $loggerFactory;
+
+  /**
+   * The time service.
+   *
+   * @var \Drupal\Component\Datetime\TimeInterface
+   */
+  protected TimeInterface $time;
 
   /**
    * Collection of forwarded loggers.
@@ -101,11 +118,15 @@ class AiLogAnalyzerLogger implements LoggerInterface {
     LogMessageParserInterface $parser,
     ConfigFactoryInterface $config_factory,
     RequestStack $request_stack,
+    LoggerChannelFactoryInterface $logger_factory,
+    TimeInterface $time,
   ) {
     $this->database = $database;
     $this->parser = $parser;
     $this->configFactory = $config_factory;
     $this->requestStack = $request_stack;
+    $this->loggerFactory = $logger_factory;
+    $this->time = $time;  
 
     // Register PHP error handler with filtering.
     set_error_handler(function ($severity, $message, $file, $line) {
@@ -121,7 +142,7 @@ class AiLogAnalyzerLogger implements LoggerInterface {
       // Only log if severity is high enough.
       if ($severity <= E_USER_WARNING) {
         $request = $this->requestStack->getCurrentRequest();
-        \Drupal::logger('php')->error('%message in %file on line %line', [
+        $this->loggerFactory->get('php')->error('%message in %file on line %line', [
           '%message' => $message,
           '%file' => $file,
           '%line' => $line,
@@ -147,7 +168,7 @@ class AiLogAnalyzerLogger implements LoggerInterface {
       }
 
       $request = $this->requestStack->getCurrentRequest();
-      \Drupal::logger('php')->critical('Uncaught exception: %message in %file on line %line', [
+      $this->loggerFactory->get('php')->critical('Uncaught exception: %message in %file on line %line', [
         '%message' => $message,
         '%file' => $e->getFile(),
         '%line' => $e->getLine(),
@@ -171,7 +192,7 @@ class AiLogAnalyzerLogger implements LoggerInterface {
         }
 
         $request = $this->requestStack->getCurrentRequest();
-        \Drupal::logger('php')->critical('Fatal error: %message in %file on line %line', [
+        $this->loggerFactory->get('php')->critical('Fatal error: %message in %file on line %line', [
           '%message' => $error['message'],
           '%file' => $error['file'],
           '%line' => $error['line'],
@@ -269,7 +290,7 @@ class AiLogAnalyzerLogger implements LoggerInterface {
 
       // Rate-limit identical messages.
       $key = md5($channel . '|' . $messageStr);
-      $now = \Drupal::time()->getCurrentTime();
+      $now = $this->time->getCurrentTime();
 
       // Prune old entries.
       $this->recentLogs = array_filter(
