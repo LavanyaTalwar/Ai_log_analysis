@@ -14,10 +14,10 @@ use Psr\Log\LogLevel;
 use Drupal\Component\Serialization\Json;
 
 /**
- * Custom logger that logs to the ai_log_analysis_table table with rate limiting.
+ * Custom logger that logs to the ai_log_analysis table with rate limiting.
  *
  * This logger captures all log messages from all channels and stores them
- * in the ai_log_analysis_table table, independent of the dblog module.
+ * in the ai_log_analysis table, independent of the dblog module.
  */
 class AiLogAnalyzerLogger implements LoggerInterface {
 
@@ -287,8 +287,8 @@ class AiLogAnalyzerLogger implements LoggerInterface {
       $placeholders = $this->parser->parseMessagePlaceholders($messageStr, $context);
       $interpolated = strtr($messageStr, $placeholders);
 
-      // Insert to ai_log_analysis_table.
-      $this->database->insert('ai_log_analysis_table')
+      // Insert to ai_log_analysis.
+      $this->database->insert('ai_log_analysis')
         ->fields([
           'type' => $channel,
           'message' => $interpolated,
@@ -300,19 +300,19 @@ class AiLogAnalyzerLogger implements LoggerInterface {
         ->execute();
 
       // Enforce log retention policy.
-      $count = $this->database->select('ai_log_analysis_table', 'cl')
+      $count = $this->database->select('ai_log_analysis', 'cl')
         ->countQuery()
         ->execute()
         ->fetchField();
 
       $limit = 1000;
       if ($count > $limit) {
-        $subquery = $this->database->select('ai_log_analysis_table', 'cl2')
+        $subquery = $this->database->select('ai_log_analysis', 'cl2')
           ->fields('cl2', ['id'])
           ->orderBy('timestamp', 'DESC')
           ->range(0, $limit);
 
-        $this->database->delete('ai_log_analysis_table')
+        $this->database->delete('ai_log_analysis')
           ->condition('id', $subquery, 'NOT IN')
           ->execute();
       }
@@ -324,7 +324,7 @@ class AiLogAnalyzerLogger implements LoggerInterface {
     }
     catch (\Exception $e) {
       // Write to PHP error log to avoid recursion.
-      error_log('ai_log_analysis failed to write to ai_log_analysis_table: ' . $e->getMessage());
+      error_log('ai_log_analysis failed to write to ai_log_analysis: ' . $e->getMessage());
     }
     finally {
       $this->inLog = FALSE;

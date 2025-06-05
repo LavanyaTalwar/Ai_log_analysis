@@ -70,8 +70,8 @@ class LogController extends ControllerBase {
    *   A render array containing the logs table with pagination.
    */
   public function logsPage(): array {
-    // Check if the ai_log_analysis_table table exists.
-    if (!$this->database->schema()->tableExists('ai_log_analysis_table')) {
+    // Check if the ai_log_analysis table exists.
+    if (!$this->database->schema()->tableExists('ai_log_analysis')) {
       return [
         '#type' => 'markup',
         '#markup' => $this->t('The custom log table has not been created. Please uninstall and reinstall the module.'),
@@ -98,7 +98,7 @@ class LogController extends ControllerBase {
       $this->t('Operations'),
     ];
 
-    $query = $this->database->select('ai_log_analysis_table', 'cl')
+    $query = $this->database->select('ai_log_analysis', 'cl')
       ->extend('Drupal\Core\Database\Query\PagerSelectExtender')
       ->limit(10)
       ->fields('cl', ['id', 'timestamp', 'type', 'severity', 'message'])
@@ -150,7 +150,7 @@ class LogController extends ControllerBase {
    *   A render array with analysis results or a redirect response on error.
    */
   public function analyze($key) {
-    $log = $this->database->select('ai_log_analysis_table', 'cl')
+    $log = $this->database->select('ai_log_analysis', 'cl')
       ->fields('cl', ['id', 'timestamp', 'type', 'severity', 'message'])
       ->condition('id', $key)
       ->execute()
@@ -223,13 +223,13 @@ class LogController extends ControllerBase {
   }
 
   /**
-   * Clears all entries from the ai_log_analysis_table table.
+   * Clears all entries from the ai_log_analysis table.
    *
    * @return \Symfony\Component\HttpFoundation\RedirectResponse
    *   A redirect back to the logs page.
    */
   public function clearLogs(): RedirectResponse {
-    $this->database->truncate('ai_log_analysis_table')->execute();
+    $this->database->truncate('ai_log_analysis')->execute();
     $this->messenger()->addStatus($this->t('All logs have been cleared.'));
     return new RedirectResponse(Url::fromRoute('ai_log_analysis.logs')->toString());
   }

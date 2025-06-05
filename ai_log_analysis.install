@@ -16,7 +16,7 @@
  * The number of logs retained is configurable via module settings.
  */
 function ai_log_analysis_schema() {
-  $schema['ai_log_analysis_table'] = [
+  $schema['ai_log_analysis'] = [
     'description' => 'Stores custom log messages.',
     'fields' => [
       'id' => [
@@ -69,7 +69,7 @@ function ai_log_analysis_schema() {
  */
 function ai_log_analysis_uninstall() {
   // Drop the custom log table on uninstall.
-  \Drupal::database()->schema()->dropTable('ai_log_analysis_table');
+  \Drupal::database()->schema()->dropTable('ai_log_analysis');
 
   // Delete configuration for this module.
   \Drupal::configFactory()->getEditable('ai_log_analysis_settings')->delete();
@@ -78,7 +78,7 @@ function ai_log_analysis_uninstall() {
 /**
  * Implements hook_install().
  *
- * Creates the ai_log_analysis_table with all necessary fields,
+ * Creates the ai_log_analysis with all necessary fields,
  * including the "variables" column (blob) for serialized variables.
  */
 function ai_log_analysis_install() {
