@@ -1,4 +1,4 @@
-ai_log_analysis_settings:
+ai_log_analysis.settings:
   path: '/admin/config/system/ai-log-analysis'
   defaults:
     _form: '\Drupal\ai_log_analysis\Form\LogAnalysisSettingsForm'
