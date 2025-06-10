@@ -9,9 +9,9 @@
  * Implements hook_cron().
  */
 function ai_log_analysis_cron() {
-  $config = \Drupal::config('ai_log_analysis.settings');
-  $log_retention_days = $config->get('log_retention_days') ?? 30;
-  $max_logs_per_type = $config->get('max_logs_per_type') ?? 1000;
+  $ai_log_analysis_settings = \Drupal::ai_log_analysis_settings('ai_log_analysis.settings');
+  $log_retention_days = $ai_log_analysis_settings->get('log_retention_days') ?? 30;
+  $max_logs_per_type = $ai_log_analysis_settings->get('max_logs_per_type') ?? 1000;
 
   // Calculate the cutoff timestamp.
   $cutoff_timestamp = \Drupal::time()->getRequestTime() - ($log_retention_days * 86400);
