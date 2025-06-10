@@ -9,7 +9,3 @@ services:
     tags:
       - { name: logger, priority: 100 }
       - { name: service_collector, tag: 'logger', call: addLogger }
-
-  ai_log_analysis.controller:
-    class: Drupal\ai_log_analysis\Controller\LogController
-    arguments: ['@ai_log_analysis.log_analyzer', '@database', '@tempstore.private']

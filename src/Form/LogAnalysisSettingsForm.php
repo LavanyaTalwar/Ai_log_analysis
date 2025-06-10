@@ -14,26 +14,26 @@ class LogAnalysisSettingsForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   protected function getEditableConfigNames(): array {
-    return ['ai_log_analysis_settings'];
+    return ['ai_log_analysis.settings'];
   }
 
   /**
    * {@inheritdoc}
    */
   public function getFormId(): string {
-    return 'ai_log_analysis_settings_form';
+    return 'ai_log_analysis.settings_form';
   }
 
   /**
    * {@inheritdoc}
    */
   public function buildForm(array $form, FormStateInterface $form_state): array {
-    $config = $this->config('ai_log_analysis_settings');
+    $ai_log_analysis_settings = $this->config('ai_log_analysis.settings');
 
     $form['log_limit'] = [
       '#type' => 'number',
       '#title' => $this->t('Number of Logs to Analyze'),
-      '#default_value' => $config->get('log_limit') ?? 5,
+      '#default_value' => $ai_log_analysis_settings->get('log_limit') ?? 5,
       '#min' => 1,
       '#max' => 1000,
       '#description' => $this->t('Maximum number of recent logs to analyze using AI.'),
@@ -42,7 +42,7 @@ class LogAnalysisSettingsForm extends ConfigFormBase {
     $form['log_retention_days'] = [
       '#type' => 'number',
       '#title' => $this->t('Log Retention Period (in Days)'),
-      '#default_value' => $config->get('log_retention_days') ?? 30,
+      '#default_value' => $ai_log_analysis_settings->get('log_retention_days') ?? 30,
       '#min' => 1,
       '#max' => 365,
       '#description' => $this->t('Number of days to retain logs before automatic cleanup via cron.'),
@@ -52,7 +52,7 @@ class LogAnalysisSettingsForm extends ConfigFormBase {
     $form['max_logs_per_type'] = [
       '#type' => 'number',
       '#title' => $this->t('Maximum Logs Per Type'),
-      '#default_value' => $config->get('max_logs_per_type') ?? 1000,
+      '#default_value' => $ai_log_analysis_settings->get('max_logs_per_type') ?? 1000,
       '#min' => 100,
       '#max' => 10000,
       '#description' => $this->t('Maximum number of logs to keep per log type (e.g., cron, page not found). Older logs will be automatically deleted.'),
@@ -83,7 +83,7 @@ class LogAnalysisSettingsForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   public function submitForm(array &$form, FormStateInterface $form_state): void {
-    $this->config('ai_log_analysis_settings')
+    $this->config('ai_log_analysis.settings')
       ->set('log_limit', (int) $form_state->getValue('log_limit'))
       ->set('log_retention_days', (int) $form_state->getValue('log_retention_days'))
       ->set('max_logs_per_type', (int) $form_state->getValue('max_logs_per_type'))

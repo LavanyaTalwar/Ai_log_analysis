@@ -72,7 +72,7 @@ function ai_log_analysis_uninstall() {
   \Drupal::database()->schema()->dropTable('ai_log_analysis');
 
   // Delete configuration for this module.
-  \Drupal::configFactory()->getEditable('ai_log_analysis_settings')->delete();
+  \Drupal::configFactory()->getEditable('ai_log_analysis.settings')->delete();
 }
 
 /**

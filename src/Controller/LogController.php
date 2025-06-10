@@ -8,7 +8,6 @@ use Drupal\ai_log_analysis\Service\LogAnalyzer;
 use Drupal\Core\Database\Connection;
 use Drupal\Core\Url;
 use Symfony\Component\HttpFoundation\RedirectResponse;
-use Drupal\Core\TempStore\PrivateTempStoreFactory;
 
 /**
  * Controller for displaying and analyzing logs.
@@ -43,13 +42,10 @@ class LogController extends ControllerBase {
    *   The log analyzer service.
    * @param \Drupal\Core\Database\Connection $database
    *   The database connection service.
-   * @param \Drupal\Core\TempStore\PrivateTempStoreFactory $temp_store_factory
-   *   The private tempstore factory.
    */
-  public function __construct(LogAnalyzer $analyzer, Connection $database, PrivateTempStoreFactory $temp_store_factory) {
+  public function __construct(LogAnalyzer $analyzer, Connection $database) {
     $this->analyzer = $analyzer;
     $this->database = $database;
-    $this->tempStore = $temp_store_factory->get('ai_log_analysis');
   }
 
   /**
@@ -59,7 +55,6 @@ class LogController extends ControllerBase {
     return new static(
       $container->get('ai_log_analysis.log_analyzer'),
       $container->get('database'),
-      $container->get('user.private_tempstore')
     );
   }
 

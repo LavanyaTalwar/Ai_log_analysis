@@ -1,4 +1,4 @@
-ai_log_analysis_settings:
+ai_log_analysis.settings:
   path: '/admin/config/system/ai-log-analysis'
   defaults:
     _form: '\Drupal\ai_log_analysis\Form\LogAnalysisSettingsForm'
@@ -9,22 +9,22 @@ ai_log_analysis_settings:
 ai_log_analysis.logs:
   path: '/admin/ai-log-analysis/logs'
   defaults:
-    _controller: 'ai_log_analysis.controller:logsPage'
+    _controller: '\Drupal\ai_log_analysis\Controller\LogController::logsPage'
     _title: 'Log Analyzer'
   requirements:
-    _permission: 'administer site configuration'
+    _access: 'TRUE'
 
 ai_log_analysis.analyze:
   path: '/admin/ai-log-analysis/logs/{key}'
   defaults:
-    _controller: 'ai_log_analysis.controller:analyze'
+    _controller: '\Drupal\ai_log_analysis\Controller\LogController::analyze'
   requirements:
     _permission: 'administer site configuration'
 
 ai_log_analysis.clear_logs:
   path: '/admin/reports/custom-logs/clear'
   defaults:
-    _controller: 'ai_log_analysis.controller:clearLogs'
+    _controller: '\Drupal\ai_log_analysis\Controller\LogController::clearLogs'
     _title: 'Clear Logs'
   requirements:
     _permission: 'administer site configuration'
