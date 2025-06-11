@@ -16,7 +16,7 @@ use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\Component\Datetime\TimeInterface;
 
 /**
- * Custom logger that logs to the ai_log_analysis table with rate limiting.
+ * AiLogAnalyzerLogger that logs to the ai_log_analysis table with rate limiting.
  *
  * This logger captures all log messages from all channels and stores them
  * in the ai_log_analysis table, independent of the dblog module.
@@ -69,13 +69,6 @@ class AiLogAnalyzerLogger implements LoggerInterface {
   protected TimeInterface $time;
 
   /**
-   * Collection of forwarded loggers.
-   *
-   * @var array<\Psr\Log\LoggerInterface>
-   */
-  protected array $loggers = [];
-
-  /**
    * Recent logs for rate limiting.
    *
    * @var array<string,int>
@@ -126,7 +119,7 @@ class AiLogAnalyzerLogger implements LoggerInterface {
     $this->requestStack = $request_stack;
     $this->loggerFactory = $logger_factory;
     $this->time = $time;
-
+  
     // Register PHP error handler with filtering.
     set_error_handler(function ($severity, $message, $file, $line) {
       // Skip ignored patterns.
@@ -137,23 +130,26 @@ class AiLogAnalyzerLogger implements LoggerInterface {
           }
         }
       }
-
-      // Only log if severity is high enough.
+  
       if ($severity <= E_USER_WARNING) {
         $request = $this->requestStack->getCurrentRequest();
-        $this->loggerFactory->get('php')->error('%message in %file on line %line', [
-          '%message' => $message,
-          '%file' => $file,
-          '%line' => $line,
-          'severity' => $severity,
-          'channel' => 'php',
-          'request_uri' => $request?->getRequestUri() ?? '',
-          'ip' => $request?->getClientIp() ?? '',
-        ]);
+        $this->database->insert('ai_log_analysis')
+          ->fields([
+            'type' => 'php',
+            'message' => sprintf('%s in %s on line %d', $message, $file, $line),
+            'severity' => 'error',
+            'location' => $request?->getRequestUri() ?? '',
+            'timestamp' => $this->time->getCurrentTime(),
+            'variables' => Json::encode([
+              'severity' => $severity,
+              'ip' => $request?->getClientIp(),
+            ]),
+          ])
+          ->execute();
       }
       return TRUE;
     });
-
+  
     // Register uncaught exception handler with filtering.
     set_exception_handler(function (\Throwable $e) {
       $message = $e->getMessage();
@@ -165,19 +161,24 @@ class AiLogAnalyzerLogger implements LoggerInterface {
           return;
         }
       }
-
+  
       $request = $this->requestStack->getCurrentRequest();
-      $this->loggerFactory->get('php')->critical('Uncaught exception: %message in %file on line %line', [
-        '%message' => $message,
-        '%file' => $e->getFile(),
-        '%line' => $e->getLine(),
-        'exception' => $e,
-        'channel' => 'php',
-        'request_uri' => $request?->getRequestUri() ?? '',
-        'ip' => $request?->getClientIp() ?? '',
-      ]);
+      $this->database->insert('ai_log_analysis')
+        ->fields([
+          'type' => 'php',
+          'message' => sprintf('Uncaught exception ai log: %s in %s on line %d', $message, $e->getFile(), $e->getLine()),
+          'severity' => 'critical',
+          'location' => $request?->getRequestUri() ?? '',
+          'timestamp' => $this->time->getCurrentTime(),
+          'variables' => Json::encode([
+            'exception' => get_class($e),
+            'ip' => $request?->getClientIp(),
+            'trace' => $e->getTraceAsString(),
+          ]),
+        ])
+        ->execute();
     });
-
+  
     // Register shutdown handler for fatal errors with filtering.
     register_shutdown_function(function () {
       $error = error_get_last();
@@ -189,16 +190,21 @@ class AiLogAnalyzerLogger implements LoggerInterface {
             return;
           }
         }
-
+  
         $request = $this->requestStack->getCurrentRequest();
-        $this->loggerFactory->get('php')->critical('Fatal error: %message in %file on line %line', [
-          '%message' => $error['message'],
-          '%file' => $error['file'],
-          '%line' => $error['line'],
-          'channel' => 'php',
-          'request_uri' => $request?->getRequestUri() ?? '',
-          'ip' => $request?->getClientIp() ?? '',
-        ]);
+        $this->database->insert('ai_log_analysis')
+          ->fields([
+            'type' => 'php',
+            'message' => sprintf('Fatal error: %s in %s on line %d', $error['message'], $error['file'], $error['line']),
+            'severity' => 'critical',
+            'location' => $request?->getRequestUri() ?? '',
+            'timestamp' => $this->time->getCurrentTime(),
+            'variables' => Json::encode([
+              'ip' => $request?->getClientIp(),
+              'type' => $error['type'],
+            ]),
+          ])
+          ->execute();
       }
     });
   }
@@ -337,10 +343,6 @@ class AiLogAnalyzerLogger implements LoggerInterface {
           ->execute();
       }
 
-      // Forward to other loggers.
-      foreach ($this->loggers as $logger) {
-        $logger->log($level, $message, $context);
-      }
     }
     catch (\Exception $e) {
       // Write to PHP error log to avoid recursion.
@@ -349,13 +351,6 @@ class AiLogAnalyzerLogger implements LoggerInterface {
     finally {
       $this->inLog = FALSE;
     }
-  }
-
-  /**
-   * Allow other loggers to be added for forwarding.
-   */
-  public function addLogger(LoggerInterface $logger): void {
-    $this->loggers[] = $logger;
   }
 
   /**
