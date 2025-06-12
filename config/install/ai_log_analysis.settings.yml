@@ -1,0 +1,3 @@
+log_limit: 100
+log_retention_days: 30
+max_logs_per_type: 1000

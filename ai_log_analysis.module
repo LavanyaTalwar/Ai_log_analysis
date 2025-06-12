@@ -24,32 +24,6 @@ function ai_log_analysis_cron() {
     ->condition('timestamp', $cutoff_timestamp, '<')
     ->execute();
 
-  // For each log type, keep only the most recent N logs.
-  $types = $database->select('ai_log_analysis', 'cl')
-    ->fields('cl', ['type'])
-    ->distinct()
-    ->execute()
-    ->fetchCol();
-
-  foreach ($types as $type) {
-    // Get IDs of logs to keep for this type.
-    $ids_to_keep = $database->select('ai_log_analysis', 'cl')
-      ->fields('cl', ['id'])
-      ->condition('type', $type)
-      ->orderBy('timestamp', 'DESC')
-      ->range(0, $max_logs_per_type)
-      ->execute()
-      ->fetchCol();
-
-    if (!empty($ids_to_keep)) {
-      // Delete excess logs for this type.
-      $database->delete('ai_log_analysis')
-        ->condition('type', $type)
-        ->condition('id', $ids_to_keep, 'NOT IN')
-        ->execute();
-    }
-  }
-
   // Only log if something was actually deleted.
   if ($deleted_count > 0) {
     \Drupal::logger('ai_log_analysis')->notice('Cleaned up @count old log entries.', ['@count' => $deleted_count]);

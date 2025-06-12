@@ -19,7 +19,7 @@ class ErrorLogAnalyzerCommand extends DrushCommands {
    *
    * @var \Drupal\ai_log_analysis\Service\AiLogAnalyzer
    */
-  protected AiLogAnalyzer $logAnalyzer;
+  protected AiLogAnalyzer $log_analyzer;
 
   /**
    * Constructs a new ErrorLogAnalyzerCommand object.
@@ -29,7 +29,7 @@ class ErrorLogAnalyzerCommand extends DrushCommands {
    */
   public function __construct(AiLogAnalyzer $log_analyzer) {
     parent::__construct();
-    $this->logAnalyzer = $log_analyzer;
+    $this->log_analyzer = $log_analyzer;
   }
 
   /**
@@ -69,7 +69,7 @@ class ErrorLogAnalyzerCommand extends DrushCommands {
     $start_date = $options['start_date'] ?? NULL;
     $end_date = $options['end_date'] ?? NULL;
 
-    $logs = $this->logAnalyzer->getRecentDblogs(10, $severity, $start_date, $end_date);
+    $logs = $this->log_analyzer->getRecentDblogs(10, $severity, $start_date, $end_date);
 
     if (empty($logs)) {
       $output->writeln("<comment>No recent logs found with the specified criteria.</comment>");
@@ -85,19 +85,18 @@ class ErrorLogAnalyzerCommand extends DrushCommands {
 
     // Use Symfony's Question helper directly.
     $question = new Question('Enter the number of the log you want to analyze: ');
-    $questionHelper = new QuestionHelper();
-    $selected = $questionHelper->ask($input, $output, $question);
+    $question_helper = new QuestionHelper();
+    $selected = $question_helper->ask($input, $output, $question);
 
     if (!is_numeric($selected) || !isset($logs[$selected])) {
       $output->writeln("<error>Invalid selection. Exiting.</error>");
       return;
     }
 
-    $selectedLog = [$logs[(int) $selected]];
-
+    $selected_log = [$logs[(int) $selected]];
     try {
       // Use the AI-based analysis method from AiLogAnalyzer service.
-      $result = $this->logAnalyzer->analyzeWithAi($selectedLog);
+      $result = $this->log_analyzer->analyzeWithAi($selected_log);
     }
     catch (\Exception $e) {
       $output->writeln("<error>AI analysis failed: {$e->getMessage()}</error>");

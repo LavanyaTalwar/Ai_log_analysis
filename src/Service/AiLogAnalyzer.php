@@ -25,21 +25,21 @@ class AiLogAnalyzer {
    *
    * @var \Drupal\ai\AiProviderPluginManager
    */
-  protected AiProviderPluginManager $aiProviderManager;
+  protected AiProviderPluginManager $ai_provider_manager;
 
   /**
    * The configuration factory service for accessing configuration objects.
    *
    * @var \Drupal\Core\Config\ConfigFactoryInterface
    */
-  protected ConfigFactoryInterface $configFactory;
+  protected ConfigFactoryInterface $config_factory;
 
   /**
    * The logger channel factory service for retrieving logger channels.
    *
    * @var \Drupal\Core\Logger\LoggerChannelFactoryInterface
    */
-  protected LoggerChannelFactoryInterface $loggerFactory;
+  protected LoggerChannelFactoryInterface $logger_factory;
 
   /**
    * Constructs the AiLogAnalyzer service.
@@ -51,9 +51,9 @@ class AiLogAnalyzer {
     LoggerChannelFactoryInterface $logger_factory,
   ) {
     $this->database = $database;
-    $this->aiProviderManager = $ai_provider_manager;
-    $this->configFactory = $config_factory;
-    $this->loggerFactory = $logger_factory;
+    $this->ai_provider_manager = $ai_provider_manager;
+    $this->config_factory = $config_factory;
+    $this->logger_factory = $logger_factory;
   }
 
   /**
@@ -144,10 +144,10 @@ class AiLogAnalyzer {
     }
 
     $prompt = $this->buildPrompt($logs);
-    $logDetails = $this->extractLogDetails($logs);
+    $log_details = $this->extractLogDetails($logs);
     $response = $this->callAiProvider($prompt);
 
-    return $this->handleAiResponse($response, $logDetails);
+    return $this->handleAiResponse($response, $log_details);
   }
 
   /**
@@ -177,21 +177,21 @@ class AiLogAnalyzer {
    */
   protected function callAiProvider(string $prompt): ?ChatMessage {
     try {
-      $defaultProvider = $this->aiProviderManager->getDefaultProviderForOperationType("chat");
+      $default_provider = $this->ai_provider_manager->getDefaultProviderForOperationType("chat");
 
-      if (empty($defaultProvider['provider_id']) || empty($defaultProvider['model_id'])) {
-        $this->loggerFactory->get('ai_log_analysis')->error("No default AI provider or model configured.");
+      if (empty($default_provider['provider_id']) || empty($default_provider['model_id'])) {
+        $this->logger_factory->get('ai_log_analysis')->error("No default AI provider or model configured.");
         return NULL;
       }
 
-      $provider = $this->aiProviderManager->createInstance($defaultProvider['provider_id']);
+      $provider = $this->ai_provider_manager->createInstance($default_provider['provider_id']);
       $provider->setChatSystemRole("You are a helpful assistant analyzing Drupal logs.");
       $input = new ChatInput([new ChatMessage("user", $prompt)]);
 
-      return $provider->chat($input, $defaultProvider['model_id'], ['ai_log_analysis'])->getNormalized();
+      return $provider->chat($input, $default_provider['model_id'], ['ai_log_analysis'])->getNormalized();
     }
     catch (\Exception $e) {
-      $this->loggerFactory->get('ai_log_analysis')->error("AI provider error: @message", ['@message' => $e->getMessage()]);
+      $this->logger_factory->get('ai_log_analysis')->error("AI provider error: @message", ['@message' => $e->getMessage()]);
       return NULL;
     }
   }
@@ -199,16 +199,16 @@ class AiLogAnalyzer {
   /**
    * Handles AI response and formats the result.
    */
-  protected function handleAiResponse(?ChatMessage $response, array $logDetails): array {
+  protected function handleAiResponse(?ChatMessage $response, array $log_details): array {
     if ($response) {
       return [
         'analysis' => $response->getText(),
-        'snippets' => $logDetails,
+        'snippets' => $log_details,
       ];
     }
     return [
       'analysis' => 'No valid response from AI provider.',
-      'snippets' => $logDetails,
+      'snippets' => $log_details,
     ];
   }
 
@@ -228,30 +228,30 @@ class AiLogAnalyzer {
    * Extracts code snippet from a log message if possible.
    */
   public function getCodeSnippetFromLog(string $message): ?string {
-    $filePath = '';
-    $lineNumber = 0;
+    $file_path = '';
+    $line_number = 0;
 
     if (preg_match('/in ([^\s]+\.php) on line (\d+)/', $message, $matches)) {
-      $filePath = $matches[1];
-      $lineNumber = (int) $matches[2];
+      $file_path = $matches[1];
+      $line_number = (int) $matches[2];
     }
     elseif (preg_match('/\(line (\d+) of ([^)]+\.php)\)/', $message, $matches)) {
-      $lineNumber = (int) $matches[1];
-      $filePath = $matches[2];
+      $line_number = (int) $matches[1];
+      $file_path = $matches[2];
     }
 
-    if ($filePath && is_file($filePath)) {
-      $lines = @file($filePath, FILE_IGNORE_NEW_LINES);
+    if ($file_path && is_file($file_path)) {
+      $lines = @file($file_path, FILE_IGNORE_NEW_LINES);
       if (!$lines) {
         return NULL;
       }
 
-      $start = max(0, $lineNumber - 11);
-      $end = min(count($lines) - 1, $lineNumber + 9);
+      $start = max(0, $line_number - 11);
+      $end = min(count($lines) - 1, $line_number + 9);
 
-      $snippet = "Code snippet from $filePath around line $lineNumber:\n\n";
+      $snippet = "Code snippet from $file_path around line $line_number:\n\n";
       for ($i = $start; $i <= $end; $i++) {
-        $prefix = ($i + 1 === $lineNumber) ? '>> ' : '   ';
+        $prefix = ($i + 1 === $line_number) ? '>> ' : '   ';
         $snippet .= $prefix . str_pad($i + 1, 4, ' ', STR_PAD_LEFT) . ': ' . $lines[$i] . "\n";
       }
       return $snippet;

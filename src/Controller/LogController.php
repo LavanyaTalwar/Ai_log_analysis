@@ -19,7 +19,7 @@ class LogController extends ControllerBase {
    *
    * @var \Drupal\ai_log_analysis\Service\AiLogAnalyzer
    */
-  protected AiLogAnalyzer $analyzer;
+  protected AiLogAnalyzer $analyzer_service;
 
   /**
    * The database connection.
@@ -33,7 +33,7 @@ class LogController extends ControllerBase {
    *
    * @var \Drupal\Core\TempStore\PrivateTempStoreFactory
    */
-  protected $tempStore;
+  protected $temp_store;
 
   /**
    * Constructs a LogController object.
@@ -44,7 +44,7 @@ class LogController extends ControllerBase {
    *   The database connection service.
    */
   public function __construct(AiLogAnalyzer $analyzer, Connection $database) {
-    $this->analyzer = $analyzer;
+    $this->analyzer_service = $analyzer;
     $this->database = $database;
   }
 
@@ -156,9 +156,9 @@ class LogController extends ControllerBase {
       return new RedirectResponse(Url::fromRoute('ai_log_analysis.logs')->toString());
     }
 
-    $result = $this->analyzer->analyzeWithAi([$log]);
+    $result = $this->analyzer_service->analyzeWithAi([$log]);
 
-    $convertBoldMarkdown = function (string $text): string {
+    $convert_bold_markdown = function (string $text): string {
       // Remove triple backticks to avoid raw markdown fences in output.
       $text = preg_replace('/```/', '', $text);
 
@@ -172,7 +172,7 @@ class LogController extends ControllerBase {
       return nl2br($with_bold);
     };
 
-    $analysis_markup = $convertBoldMarkdown($result['analysis'] ?? $this->t('No analysis available.'));
+    $analysis_markup = $convert_bold_markdown($result['analysis'] ?? $this->t('No analysis available.'));
 
     $build = [
       '#type' => 'container',

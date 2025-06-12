@@ -36,58 +36,15 @@ class AiLogAnalyzerLogger implements LoggerInterface {
    * @var \Drupal\Core\Logger\LogMessageParserInterface
    */
   protected LogMessageParserInterface $parser;
-
-  /**
-   * The config factory.
-   *
-   * @var \Drupal\Core\Config\ConfigFactoryInterface
-   */
-  protected ConfigFactoryInterface $configFactory;
-
-  /**
-   * The request stack service to access the current request.
-   *
-   * Used to retrieve data like request URI and client IP
-   * without using \Drupal::request().
-   *
-   * @var \Symfony\Component\HttpFoundation\RequestStack
-   */
-  protected RequestStack $requestStack;
-
-  /**
-   * The logger factory.
-   *
-   * @var \Drupal\Core\Logger\LoggerChannelFactoryInterface
-   */
-  protected LoggerChannelFactoryInterface $loggerFactory;
-
-  /**
-   * The time service.
-   *
-   * @var \Drupal\Component\Datetime\TimeInterface
-   */
+  protected ConfigFactoryInterface $config_factory;
+  protected RequestStack $request_stack;
+  protected LoggerChannelFactoryInterface $logger_factory;
   protected TimeInterface $time;
 
-  /**
-   * Recent logs for rate limiting.
-   *
-   * @var array<string,int>
-   */
-  protected array $recentLogs = [];
+  protected array $recent_logs = [];
+  protected int $rate_limit_window = 300;
 
-  /**
-   * Rate limit window in seconds (default 5 minutes).
-   *
-   * @var int
-   */
-  protected int $rateLimitWindow = 300;
-
-  /**
-   * Patterns to ignore in log messages.
-   *
-   * @var array<string>
-   */
-  protected array $ignoredPatterns = [
+  protected array $ignored_patterns = [
     '/mkdir\(\): File exists/',
     '/Since symfony\/dependency-injection/',
     '/stat\(\): stat failed for/',
@@ -95,12 +52,7 @@ class AiLogAnalyzerLogger implements LoggerInterface {
     '/The "yaml_parser_class" setting is deprecated/',
   ];
 
-  /**
-   * Guard against re-entrancy.
-   *
-   * @var bool
-   */
-  protected bool $inLog = FALSE;
+  protected bool $in_log = FALSE;
 
   /**
    * Constructs a AiLogAnalyzerLogger object.
@@ -115,15 +67,14 @@ class AiLogAnalyzerLogger implements LoggerInterface {
   ) {
     $this->database = $database;
     $this->parser = $parser;
-    $this->configFactory = $config_factory;
-    $this->requestStack = $request_stack;
-    $this->loggerFactory = $logger_factory;
+    $this->config_factory = $config_factory;
+    $this->request_stack = $request_stack;
+    $this->logger_factory = $logger_factory;
     $this->time = $time;
 
     // Register PHP error handler with filtering.
     set_error_handler(function ($severity, $message, $file, $line) {
-      // Skip ignored patterns.
-      foreach ($this->ignoredPatterns as $pattern) {
+      foreach ($this->ignored_patterns as $pattern) {
         if (@preg_match($pattern, $message)) {
           if (preg_match($pattern, $message)) {
             return TRUE;
@@ -132,7 +83,7 @@ class AiLogAnalyzerLogger implements LoggerInterface {
       }
 
       if ($severity <= E_USER_WARNING) {
-        $request = $this->requestStack->getCurrentRequest();
+        $request = $this->request_stack->getCurrentRequest();
         $this->database->insert('ai_log_analysis')
           ->fields([
             'type' => 'php',
@@ -154,13 +105,13 @@ class AiLogAnalyzerLogger implements LoggerInterface {
     set_exception_handler(function (\Throwable $e) {
       $message = $e->getMessage();
 
-      // Skip ignored patterns.
-      foreach ($this->ignoredPatterns as $pattern) {
+      foreach ($this->ignored_patterns as $pattern) {
         if (strpos($message, $pattern) !== FALSE) {
           return;
         }
       }
-      $request = $this->requestStack->getCurrentRequest();
+
+      $request = $this->request_stack->getCurrentRequest();
       $this->database->insert('ai_log_analysis')
         ->fields([
           'type' => 'php',
@@ -182,12 +133,13 @@ class AiLogAnalyzerLogger implements LoggerInterface {
       $error = error_get_last();
       if ($error && in_array($error['type'], [E_ERROR, E_CORE_ERROR, E_COMPILE_ERROR, E_PARSE], TRUE)) {
         // Skip ignored patterns.
-        foreach ($this->ignoredPatterns as $pattern) {
+        foreach ($this->ignored_patterns as $pattern) {
           if (strpos($error['message'], $pattern) !== FALSE) {
             return;
           }
         }
-        $request = $this->requestStack->getCurrentRequest();
+
+        $request = $this->request_stack->getCurrentRequest();
         $this->database->insert('ai_log_analysis')
           ->fields([
             'type' => 'php',
@@ -265,18 +217,16 @@ class AiLogAnalyzerLogger implements LoggerInterface {
    * {@inheritdoc}
    */
   public function log($level, string|\Stringable $message, array $context = []): void {
-    // Prevent recursion if already inside log()
-    if ($this->inLog) {
+    if ($this->in_log) {
       return;
     }
-    $this->inLog = TRUE;
+    $this->in_log = TRUE;
 
     try {
-      // Skip ignored patterns.
-      $messageStr = (string) $message;
-      foreach ($this->ignoredPatterns as $pattern) {
-        if (strpos($messageStr, $pattern) !== FALSE) {
-          $this->inLog = FALSE;
+      $message_str = (string) $message;
+      foreach ($this->ignored_patterns as $pattern) {
+        if (strpos($message_str, $pattern) !== FALSE) {
+          $this->in_log = FALSE;
           return;
         }
       }
@@ -290,24 +240,22 @@ class AiLogAnalyzerLogger implements LoggerInterface {
       $channel = $context['channel'] ?? 'system';
 
       // Rate-limit identical messages.
-      $key = md5($channel . '|' . $messageStr);
+      $key = md5($channel . '|' . $message_str);
       $now = $this->time->getCurrentTime();
 
-      // Prune old entries.
-      $this->recentLogs = array_filter(
-        $this->recentLogs,
-        fn($timestamp) => ($now - $timestamp) < $this->rateLimitWindow
+      $this->recent_logs = array_filter(
+        $this->recent_logs,
+        fn($timestamp) => ($now - $timestamp) < $this->rate_limit_window
       );
 
-      if (isset($this->recentLogs[$key])) {
-        $this->inLog = FALSE;
+      if (isset($this->recent_logs[$key])) {
+        $this->in_log = FALSE;
         return;
       }
-      $this->recentLogs[$key] = $now;
+      $this->recent_logs[$key] = $now;
 
-      // Interpolate placeholders.
-      $placeholders = $this->parser->parseMessagePlaceholders($messageStr, $context);
-      $interpolated = strtr($messageStr, $placeholders);
+      $placeholders = $this->parser->parseMessagePlaceholders($message_str, $context);
+      $interpolated = strtr($message_str, $placeholders);
 
       // Insert to ai_log_analysis.
       $this->database->insert('ai_log_analysis')
@@ -345,7 +293,7 @@ class AiLogAnalyzerLogger implements LoggerInterface {
       error_log('ai_log_analysis failed to write to ai_log_analysis: ' . $e->getMessage());
     }
     finally {
-      $this->inLog = FALSE;
+      $this->in_log = FALSE;
     }
   }
 
