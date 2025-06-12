@@ -1,0 +1,94 @@
+<?php
+
+/**
+ * @file
+ * Install, update, and uninstall functions for the ai_log_analysis module.
+ */
+
+/**
+ * Implements hook_schema().
+ *
+ * Defines the database schema for the AI Log Analysis module.
+ * This schema adds a new table to store log messages specifically
+ * for AI-based analysis. It does not interfere with or replace Drupal's
+ * core logging mechanisms or any other logging system.
+ *
+ * The number of logs retained is configurable via module settings.
+ */
+function ai_log_analysis_schema() {
+  $schema['ai_log_analysis'] = [
+    'description' => 'Stores custom log messages.',
+    'fields' => [
+      'id' => [
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ],
+      'type' => [
+        'type' => 'varchar',
+        'length' => 64,
+        'not null' => TRUE,
+      ],
+      'message' => [
+        'type' => 'text',
+        'not null' => TRUE,
+      ],
+      'severity' => [
+        'type' => 'varchar',
+        'length' => 16,
+        'not null' => TRUE,
+      ],
+      'location' => [
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => FALSE,
+      ],
+      'timestamp' => [
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ],
+      'variables' => [
+        'type' => 'blob',
+        'not null' => FALSE,
+        'description' => 'Serialized variables (if any) for the log message.',
+      ],
+    ],
+    'primary key' => ['id'],
+    'indexes' => [
+      'type' => ['type'],
+      'timestamp' => ['timestamp'],
+    ],
+  ];
+
+  return $schema;
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function ai_log_analysis_uninstall() {
+  // Drop the custom log table on uninstall.
+  \Drupal::database()->schema()->dropTable('ai_log_analysis');
+
+  // Delete configuration for this module.
+  \Drupal::configFactory()->getEditable('ai_log_analysis.settings')->delete();
+}
+
+/**
+ * Implements hook_install().
+ *
+ * Creates the ai_log_analysis with all necessary fields,
+ * including the "variables" column (blob) for serialized variables.
+ */
+function ai_log_analysis_install() {
+  $connection = \Drupal::database();
+  $schema = $connection->schema();
+  if ($schema->tableExists('custom_log') && !$schema->fieldExists('custom_log', 'variables')) {
+    $schema->addField('custom_log', 'variables', [
+      'type' => 'blob',
+      'not null' => FALSE,
+      'description' => 'Serialized variables (if any) for the log message.',
+    ]);
+  }
+}

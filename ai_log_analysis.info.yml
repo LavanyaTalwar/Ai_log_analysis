@@ -1,0 +1,8 @@
+name: 'AI Log Analysis'
+type: module
+description: 'Analyzes Drupal logs and uses AI to provide insights and fixes.'
+core_version_requirement: ^10
+package: Custom
+dependencies:
+  - drupal:ai
+configure: ai_log_analysis.settings

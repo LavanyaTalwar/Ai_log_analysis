@@ -1,0 +1,31 @@
+<?php
+
+/**
+ * @file
+ * Contains hooks and custom logic for the ai_log_analysis module.
+ */
+
+/**
+ * Implements hook_cron().
+ */
+function ai_log_analysis_cron() {
+  $ai_log_analysis_settings = \Drupal::config('ai_log_analysis.settings');
+  $log_retention_days = $ai_log_analysis_settings->get('log_retention_days') ?? 30;
+  $max_logs_per_type = $ai_log_analysis_settings->get('max_logs_per_type') ?? 1000;
+
+  // Calculate the cutoff timestamp.
+  $cutoff_timestamp = \Drupal::time()->getRequestTime() - ($log_retention_days * 86400);
+
+  // Get database connection.
+  $database = \Drupal::database();
+
+  // Delete old logs in a single operation.
+  $deleted_count = $database->delete('ai_log_analysis')
+    ->condition('timestamp', $cutoff_timestamp, '<')
+    ->execute();
+
+  // Only log if something was actually deleted.
+  if ($deleted_count > 0) {
+    \Drupal::logger('ai_log_analysis')->notice('Cleaned up @count old log entries.', ['@count' => $deleted_count]);
+  }
+}

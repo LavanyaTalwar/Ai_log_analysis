@@ -1,0 +1,7 @@
+services:
+  ai_log_analysis.commands:
+    class: Drupal\ai_log_analysis\Command\ErrorLogAnalyzerCommand
+    arguments:
+      - '@ai_log_analysis.log_analyzer'
+    tags:
+      - { name: drush.command }

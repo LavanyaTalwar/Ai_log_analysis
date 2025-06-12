@@ -1,0 +1,10 @@
+services:
+  ai_log_analysis.log_analyzer:
+    class: Drupal\ai_log_analysis\Service\AiLogAnalyzer
+    arguments: ['@database', '@ai.provider', '@config.factory', '@logger.factory']
+
+  ai_log_analysis.logger:
+    class: Drupal\ai_log_analysis\Logger\AiLogAnalyzerLogger
+    arguments: ['@database', '@logger.log_message_parser', '@config.factory', '@request_stack', '@logger.factory', '@datetime.time']
+    tags:
+      - { name: logger, priority: 100 }
