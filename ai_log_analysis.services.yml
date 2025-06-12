@@ -1,6 +1,6 @@
 services:
   ai_log_analysis.log_analyzer:
-    class: Drupal\ai_log_analysis\Service\LogAnalyzer
+    class: Drupal\ai_log_analysis\Service\AiLogAnalyzer
     arguments: ['@database', '@ai.provider', '@config.factory', '@logger.factory']
 
   ai_log_analysis.logger:

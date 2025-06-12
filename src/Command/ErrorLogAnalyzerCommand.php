@@ -4,7 +4,7 @@ namespace Drupal\ai_log_analysis\Command;
 
 use Symfony\Component\Console\Helper\QuestionHelper;
 use Symfony\Component\Console\Question\Question;
-use Drupal\ai_log_analysis\Service\LogAnalyzer;
+use Drupal\ai_log_analysis\Service\AiLogAnalyzer;
 use Drush\Commands\DrushCommands;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -17,17 +17,17 @@ class ErrorLogAnalyzerCommand extends DrushCommands {
   /**
    * The log analyzer service.
    *
-   * @var \Drupal\ai_log_analysis\Service\LogAnalyzer
+   * @var \Drupal\ai_log_analysis\Service\AiLogAnalyzer
    */
-  protected LogAnalyzer $logAnalyzer;
+  protected AiLogAnalyzer $logAnalyzer;
 
   /**
    * Constructs a new ErrorLogAnalyzerCommand object.
    *
-   * @param \Drupal\ai_log_analysis\Service\LogAnalyzer $log_analyzer
+   * @param \Drupal\ai_log_analysis\Service\AiLogAnalyzer $log_analyzer
    *   The log analyzer service.
    */
-  public function __construct(LogAnalyzer $log_analyzer) {
+  public function __construct(AiLogAnalyzer $log_analyzer) {
     parent::__construct();
     $this->logAnalyzer = $log_analyzer;
   }
@@ -96,7 +96,7 @@ class ErrorLogAnalyzerCommand extends DrushCommands {
     $selectedLog = [$logs[(int) $selected]];
 
     try {
-      // Use the AI-based analysis method from LogAnalyzer service.
+      // Use the AI-based analysis method from AiLogAnalyzer service.
       $result = $this->logAnalyzer->analyzeWithAi($selectedLog);
     }
     catch (\Exception $e) {

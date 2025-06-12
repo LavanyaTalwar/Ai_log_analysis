@@ -12,7 +12,7 @@ use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 /**
  * Service to analyze logs using the contrib AI module (via ai.provider).
  */
-class LogAnalyzer {
+class AiLogAnalyzer {
   /**
    * The database connection used for storing and retrieving log entries.
    *
@@ -42,7 +42,7 @@ class LogAnalyzer {
   protected LoggerChannelFactoryInterface $loggerFactory;
 
   /**
-   * Constructs the LogAnalyzer service.
+   * Constructs the AiLogAnalyzer service.
    */
   public function __construct(
     Connection $database,

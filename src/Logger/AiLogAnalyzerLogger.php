@@ -119,7 +119,7 @@ class AiLogAnalyzerLogger implements LoggerInterface {
     $this->requestStack = $request_stack;
     $this->loggerFactory = $logger_factory;
     $this->time = $time;
-  
+
     // Register PHP error handler with filtering.
     set_error_handler(function ($severity, $message, $file, $line) {
       // Skip ignored patterns.
@@ -130,7 +130,7 @@ class AiLogAnalyzerLogger implements LoggerInterface {
           }
         }
       }
-  
+
       if ($severity <= E_USER_WARNING) {
         $request = $this->requestStack->getCurrentRequest();
         $this->database->insert('ai_log_analysis')
@@ -149,7 +149,7 @@ class AiLogAnalyzerLogger implements LoggerInterface {
       }
       return TRUE;
     });
-  
+
     // Register uncaught exception handler with filtering.
     set_exception_handler(function (\Throwable $e) {
       $message = $e->getMessage();
@@ -157,11 +157,9 @@ class AiLogAnalyzerLogger implements LoggerInterface {
       // Skip ignored patterns.
       foreach ($this->ignoredPatterns as $pattern) {
         if (strpos($message, $pattern) !== FALSE) {
-          // Skip logging.
           return;
         }
       }
-  
       $request = $this->requestStack->getCurrentRequest();
       $this->database->insert('ai_log_analysis')
         ->fields([
@@ -178,7 +176,7 @@ class AiLogAnalyzerLogger implements LoggerInterface {
         ])
         ->execute();
     });
-  
+
     // Register shutdown handler for fatal errors with filtering.
     register_shutdown_function(function () {
       $error = error_get_last();
@@ -186,11 +184,9 @@ class AiLogAnalyzerLogger implements LoggerInterface {
         // Skip ignored patterns.
         foreach ($this->ignoredPatterns as $pattern) {
           if (strpos($error['message'], $pattern) !== FALSE) {
-            // Skip logging.
             return;
           }
         }
-  
         $request = $this->requestStack->getCurrentRequest();
         $this->database->insert('ai_log_analysis')
           ->fields([

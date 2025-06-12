@@ -4,7 +4,7 @@ namespace Drupal\ai_log_analysis\Controller;
 
 use Drupal\Core\Controller\ControllerBase;
 use Symfony\Component\DependencyInjection\ContainerInterface;
-use Drupal\ai_log_analysis\Service\LogAnalyzer;
+use Drupal\ai_log_analysis\Service\AiLogAnalyzer;
 use Drupal\Core\Database\Connection;
 use Drupal\Core\Url;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -17,9 +17,9 @@ class LogController extends ControllerBase {
   /**
    * The log analyzer service.
    *
-   * @var \Drupal\ai_log_analysis\Service\LogAnalyzer
+   * @var \Drupal\ai_log_analysis\Service\AiLogAnalyzer
    */
-  protected LogAnalyzer $analyzer;
+  protected AiLogAnalyzer $analyzer;
 
   /**
    * The database connection.
@@ -38,12 +38,12 @@ class LogController extends ControllerBase {
   /**
    * Constructs a LogController object.
    *
-   * @param \Drupal\ai_log_analysis\Service\LogAnalyzer $analyzer
+   * @param \Drupal\ai_log_analysis\Service\AiLogAnalyzer $analyzer
    *   The log analyzer service.
    * @param \Drupal\Core\Database\Connection $database
    *   The database connection service.
    */
-  public function __construct(LogAnalyzer $analyzer, Connection $database) {
+  public function __construct(AiLogAnalyzer $analyzer, Connection $database) {
     $this->analyzer = $analyzer;
     $this->database = $database;
   }
